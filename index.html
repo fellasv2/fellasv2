@@ -118,6 +118,23 @@ tbody td{padding:4px 8px;vertical-align:middle}
 .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;z-index:9999;transform:translateY(60px);opacity:0;transition:all .25s;background:var(--silver);color:var(--bg)}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.err{background:var(--red);color:#fff}
+
+/* ── TOTALES ── */
+.totales{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+.tot-card{background:var(--card);border:1px solid var(--border);padding:10px 16px;min-width:100px}
+.tot-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.tot-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text)}
+.tot-val.pos{color:var(--green)} .tot-val.neg{color:var(--red)}
+
+/* ── PIZARRA ── */
+.pizarra-wrap{margin-top:16px}
+.pizarra-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.pizarra{width:100%;min-height:120px;background:var(--card);border:1px solid var(--border);color:var(--muted2);font-family:'DM Mono',monospace;font-size:11px;padding:12px 14px;resize:vertical;outline:none;line-height:1.7;transition:border-color .2s}
+.pizarra:focus{border-color:var(--border2);color:var(--text)}
+
+/* ── COLOR TORNEO ── */
+.color-dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.15);cursor:pointer;flex-shrink:0;display:inline-block}
+input[type=color].color-picker{width:0;height:0;opacity:0;position:absolute;pointer-events:none}
 </style>
 </head>
 <body>
@@ -168,16 +185,25 @@ tbody td{padding:4px 8px;vertical-align:middle}
       <span class="topbar-t">Grilla del día</span>
     </div>
     <div class="content">
+      <!-- TOTALES -->
+      <div class="totales" id="totales">
+        <div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val" id="t-torneos">0</div></div>
+        <div class="tot-card"><div class="tot-label">En curso</div><div class="tot-val" id="t-curso">0</div></div>
+        <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
+        <div class="tot-card"><div class="tot-label">Resultado</div><div class="tot-val" id="t-resultado">—</div></div>
+        <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
+      </div>
+
       <div class="twrap">
         <table>
           <colgroup>
-            <col class="ch"><col class="ce"><col class="cn"><col class="cs">
+            <col style="width:28px"><col class="ch"><col class="ce"><col class="cn"><col class="cs">
             <col class="cb"><col class="cr"><col class="crb">
             <col class="ci"><col class="cp"><col class="crs"><col class="cd">
           </colgroup>
           <thead>
             <tr>
-              <th>Hora</th><th>Estado</th><th>Nombre</th><th>Sala</th>
+              <th></th><th>Hora</th><th>Estado</th><th>Nombre</th><th>Sala</th>
               <th class="r">Buy In</th><th class="r">Rebuy</th><th class="r">Costo RB</th>
               <th class="c">ITM</th><th class="r">Premio</th><th class="r">Resultado</th>
               <th></th>
@@ -186,6 +212,19 @@ tbody td{padding:4px 8px;vertical-align:middle}
           <tbody id="tbody"></tbody>
         </table>
       </div>
+
+      <!-- PIZARRA -->
+      <div class="pizarra-wrap">
+        <div class="pizarra-label">Pizarra del equipo</div>
+        <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">★ SINCERIDAD · CAPACIDAD · CREDIBILIDAD · COMPROMISO · INTUICIÓN
+
+★ Seleccionar mesas antes de registrarse en torneos caros.
+
+★ Max 8 mesas
+
+★ Al seleccionar mesas para registrarse, en caso de bug del HUD reiniciar al descanso</textarea>
+      </div>
+
     </div>
   </div>
 </div>
@@ -260,6 +299,7 @@ async function arrancar(){
   document.getElementById('sbav').textContent=email[0].toUpperCase();
   document.getElementById('sbnm').textContent=email;
   await Promise.all([cargarSalas(), obtenerSesion()]);
+  cargarPizarra();
 }
 
 // ── SALAS ─────────────────────────────
@@ -287,17 +327,62 @@ async function obtenerSesion(){
 }
 
 // ── GRILLA ────────────────────────────
+function horaAMin(h){
+  // Orden nocturno: 17-23 primero, 00-16 después
+  if(!h||typeof h!=='string') return 9999;
+  const parts=h.split(':');
+  const hh=parseInt(parts[0])||0;
+  const mm=parseInt(parts[1])||0;
+  const total=hh*60+mm;
+  // Horas 00-16 se tratan como 24-40 (continuación de la noche)
+  return hh<17 ? total+24*60 : total;
+}
+
 async function cargarGrilla(){
   if(!sesion) return;
   const {data}=await sb.from('grilla_entradas')
     .select('*,salas(nombre)').eq('sesion_id',sesion.sesion_id)
     .order('entrada_id',{ascending:true});
-  filas=data||[];
+  filas=(data||[]).sort((a,b)=>horaAMin(a.hora)-horaAMin(b.hora));
   renderizar();
+  actualizarTotales();
 }
 
 function renderizar(){
   document.getElementById('tbody').innerHTML=filas.map(f=>fila(f)).join('');
+}
+function actualizarTotales(){
+  const activos=filas.filter(f=>f.estado!=='cancelado');
+  const enCurso=filas.filter(f=>f.estado==='en_curso');
+  const finalizados=filas.filter(f=>f.estado==='finalizado');
+  const itm=filas.filter(f=>f.itm).length;
+  const resultado=finalizados.reduce((s,f)=>s+(f.resultado||0),0);
+
+  document.getElementById('t-torneos').textContent=activos.length;
+  document.getElementById('t-curso').textContent=enCurso.length;
+  document.getElementById('t-itm').textContent=itm;
+
+  const resEl=document.getElementById('t-resultado');
+  if(finalizados.length===0){resEl.textContent='—';resEl.className='tot-val';}
+  else{
+    resEl.textContent=(resultado>=0?'+':'')+resultado.toLocaleString('es-AR');
+    resEl.className='tot-val '+(resultado>0?'pos':resultado<0?'neg':'');
+  }
+
+  // Tiempo sesión: primer en_curso o finalizado hasta último finalizado
+  const conHoraInicio=filas.filter(f=>f.hora&&(f.estado==='en_curso'||f.estado==='finalizado'));
+  const conHoraFin=filas.filter(f=>f.hora&&f.estado==='finalizado');
+  if(conHoraInicio.length>0&&conHoraFin.length>0){
+    const minOrd=f=>horaAMin(f.hora);
+    const inicio=Math.min(...conHoraInicio.map(minOrd));
+    const fin=Math.max(...conHoraFin.map(minOrd));
+    const durMin=fin-inicio;
+    if(durMin>0){
+      const h=Math.floor(durMin/60);
+      const m=durMin%60;
+      document.getElementById('t-tiempo').textContent=h+'h '+(m<10?'0':'')+m+'m';
+    } else {document.getElementById('t-tiempo').textContent='—';}
+  } else {document.getElementById('t-tiempo').textContent='—';}
 }
 
 function fila(e){
@@ -308,8 +393,13 @@ function fila(e){
   const rt=r===null?'—':r===0?'—':(r>0?'+':'')+r.toLocaleString('es-AR');
   const ec=e.estado==='en_curso'?'ec':e.estado==='finalizado'?'ef':e.estado==='cancelado'?'ex':'ei';
   const sala=e.salas?.nombre||'';
+  const col=e.color||'#3a4a5a';
   return `<tr data-id="${id}">
-    <td><input class="cel" type="text" value="${e.hora||''}" placeholder="00:00" style="width:48px" onblur="upd(${id},'hora',this.value)"></td>
+    <td class="c" style="padding:4px 4px">
+      <span class="color-dot" style="background:${col}" onclick="abrirColor(${id},this)" title="Color del torneo"></span>
+      <input type="color" id="cp${id}" value="${col}" onchange="updColor(${id},this)">
+    </td>
+    <td><input class="cel" type="text" value="${e.hora||''}" placeholder="00:00" style="width:48px" onblur="updHoraOrdenar(${id},this.value)"></td>
     <td>
       <select class="esel ${ec}" onchange="updE(${id},this)">
         <option value="a_iniciar" ${e.estado==='a_iniciar'?'selected':''}>A iniciar</option>
@@ -336,7 +426,7 @@ async function agregarFila(){
   if(!sesion){toast('Sin sesión activa',true);return;}
   const ahora=new Date().toTimeString().slice(0,5);
   const {data,error}=await sb.from('grilla_entradas')
-    .insert({sesion_id:sesion.sesion_id,nombre_torneo:'',hora:ahora,buyin:0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0})
+    .insert({sesion_id:sesion.sesion_id,nombre_torneo:'',hora:ahora,buyin:0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:'#3a4a5a'})
     .select('*,salas(nombre)');
   if(error){toast('Error: '+error.message,true);return;}
   const e=data[0]; filas.push(e);
@@ -358,6 +448,25 @@ function setRes(id,r){
   c.textContent=r===0?'—':(r>0?'+':'')+r.toLocaleString('es-AR');
 }
 function upd(id,col,val){const e=get(id);if(e)e[col]=val;db(id,{[col]:val});}
+function updHoraOrdenar(id,val){
+  const e=get(id);if(e)e.hora=val;
+  db(id,{hora:val});
+  // Reordenar filas en DOM
+  filas.sort((a,b)=>horaAMin(a.hora)-horaAMin(b.hora));
+  renderizar();
+  actualizarTotales();
+}
+function abrirColor(id,dot){
+  const picker=document.getElementById('cp'+id);
+  if(picker){picker.style.pointerEvents='all';picker.click();picker.style.pointerEvents='none';}
+}
+function updColor(id,picker){
+  const col=picker.value;
+  const e=get(id);if(e)e.color=col;
+  const dot=picker.previousElementSibling;
+  if(dot)dot.style.background=col;
+  db(id,{color:col});
+}
 function updE(id,sel){
   const cls=sel.value==='en_curso'?'ec':sel.value==='finalizado'?'ef':sel.value==='cancelado'?'ex':'ei';
   sel.className='esel '+cls;
@@ -366,6 +475,7 @@ function updE(id,sel){
   const res=calcRes(e);
   if(res!==null){e.resultado=res;setRes(id,res);db(id,{estado:sel.value,resultado:res});}
   else{e.resultado=0;setRes(id,null);db(id,{estado:sel.value,resultado:0});}
+  actualizarTotales();
 }
 function updSala(id,nm){
   const s=salas.find(x=>x.nombre.toLowerCase()===nm.trim().toLowerCase());
@@ -413,6 +523,7 @@ function updPremio(id,v){
   const res=calcRes(e);
   if(res!==null){e.resultado=res;setRes(id,res);db(id,{premio:p,resultado:res});}
   else{e.resultado=0;setRes(id,null);db(id,{premio:p,resultado:0});}
+  actualizarTotales();
 }
 function updITM(id,btn){
   const e=get(id);if(!e)return;
@@ -420,6 +531,7 @@ function updITM(id,btn){
   btn.className='itm-btn'+(e.itm?' si':'');
   btn.textContent=e.itm?'SÍ':'NO';
   db(id,{itm:e.itm});
+  actualizarTotales();
 }
 async function eliminar(id){
   if(!confirm('¿Eliminar este torneo?'))return;
