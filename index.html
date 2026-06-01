@@ -20,7 +20,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
 body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png');background-repeat:no-repeat;background-position:center center;background-size:40%;z-index:0;opacity:0.15;pointer-events:none}
 #loading,#login,#app{position:relative;z-index:1}
 
-/* ââ LOADING ââ */
+/* ── LOADING ── */
 #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;z-index:9999}
 .logo{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:4px}
 .logo span{color:var(--silver)}
@@ -28,7 +28,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 .bar div{height:100%;background:var(--silver);width:0;animation:lb 1.4s ease forwards}
 @keyframes lb{to{width:100%}}
 
-/* ââ LOGIN ââ */
+/* ── LOGIN ── */
 #login{min-height:100vh;display:none;align-items:center;justify-content:center}
 .lbox{width:340px;padding:44px 40px;background:var(--surface);border:1px solid var(--border2);border-top:2px solid var(--silver)}
 .ltag{font-size:10px;letter-spacing:2px;color:var(--muted);margin:6px 0 32px;text-transform:uppercase}
@@ -42,10 +42,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 .lbtn:disabled{opacity:.4;cursor:not-allowed}
 .lerr{color:var(--red);font-size:11px;margin-top:8px;display:none}
 
-/* ââ APP ââ */
+/* ── APP ── */
 #app{display:none;min-height:100vh}
 
-/* ââ SIDEBAR ââ */
+/* ── SIDEBAR ── */
 .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sw);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
 .sb-hdr{padding:22px 16px 16px;border-bottom:1px solid var(--border)}
 .sb-logo{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;letter-spacing:3px}
@@ -60,7 +60,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 .logout-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;width:100%;border:none;background:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);border-radius:4px;transition:all .15s}
 .logout-btn:hover{color:var(--red);background:rgba(224,86,86,.08)}
 
-/* ââ MAIN ââ */
+/* ── MAIN ── */
 .main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
 .topbar{height:48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:50}
 .topbar-t{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
@@ -71,9 +71,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 .lema-card strong{display:block;font-family:'Syne',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 .lema-word{display:block;color:var(--silver);font-size:13px;font-weight:500;letter-spacing:0.5px}
 
-/* ââ TOOLBAR ââ */
+/* ── TOOLBAR ── */
 
-/* ââ TABLA ââ */
+/* ── TABLA ── */
 .twrap{background:var(--card);border:1px solid var(--border);overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 col.ch{width:64px} col.ce{width:106px} col.cn{width:auto}
@@ -114,7 +114,7 @@ tbody td{padding:4px 8px;vertical-align:middle}
 
 
 
-/* ââ MODAL ââ */
+/* ── MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(10,10,10,.88);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(3px)}
 .overlay.open{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border2);border-top:2px solid var(--green);padding:28px 32px;max-width:380px;width:90vw}
@@ -126,8 +126,8 @@ tbody td{padding:4px 8px;vertical-align:middle}
 .confirm-btn{padding:7px 18px;background:var(--green);color:var(--bg);border:none;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:opacity .2s}
 .confirm-btn:hover{opacity:.85}
 
-/* ââ TOAST ââ */
-/* ââ CONFETTI ITM ââ */
+/* ── TOAST ── */
+/* ── CONFETTI ITM ── */
 .confetti-wrap{position:absolute;top:-8px;left:50%;transform:translateX(-50%);pointer-events:none;width:40px;height:30px;overflow:visible}
 .conf-bit{position:absolute;width:5px;height:5px;border-radius:1px;opacity:0;animation:conf-fly 0.8s ease-out forwards}
 @keyframes conf-fly{
@@ -140,19 +140,19 @@ td.itm-cel{position:relative}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.err{background:var(--red);color:#fff}
 
-/* ââ TOTALES ââ */
+/* ── TOTALES ── */
 .totales{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .tot-card{background:var(--card);border:1px solid var(--border);padding:10px 16px;min-width:90px}
 .tot-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .tot-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text)}
 
-/* ââ PIZARRA ââ */
+/* ── PIZARRA ── */
 .pizarra-card{background:var(--card);border:1px solid var(--border)}
 .pizarra-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 12px 0;display:block}
 .pizarra{width:100%;min-height:300px;background:transparent;border:none;color:var(--muted2);font-family:'DM Mono',monospace;font-size:11px;padding:8px 12px 12px;resize:none;outline:none;line-height:1.8;transition:color .2s}
 .pizarra:focus{color:var(--text)}
 
-/* ââ COLOR TORNEO ââ */
+/* ── COLOR TORNEO ── */
 .color-btns{display:flex;gap:3px;align-items:center}
 .cbtn{width:13px;height:13px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex-shrink:0;transition:border-color .15s}
 .cbtn:hover,.cbtn.active{border-color:rgba(255,255,255,.7)}
@@ -180,7 +180,7 @@ td.itm-cel{position:relative}
     </div>
     <div class="field">
       <label>Contraseña</label>
-      <input type="password" id="l-pw" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="current-password">
+      <input type="password" id="l-pw" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="lbtn" id="lbtn">ENTRAR</button>
     <div class="lerr" id="lerr"></div>
@@ -193,16 +193,16 @@ td.itm-cel{position:relative}
       <div class="sb-logo">FELLAS <span>v2</span></div>
       <div class="sb-user">
         <div class="sb-av" id="sbav">?</div>
-        <span class="sb-nm" id="sbnm">â</span>
+        <span class="sb-nm" id="sbnm">—</span>
       </div>
     </div>
     <div class="sb-nav">
       <button class="nav-btn active">
-        <span style="width:16px;text-align:center">â</span> Grilla
+        <span style="width:16px;text-align:center">◈</span> Grilla
       </button>
     </div>
     <div class="sb-ftr">
-      <button class="logout-btn" onclick="logout()">â» Cerrar sesión</button>
+      <button class="logout-btn" onclick="logout()">⏻ Cerrar sesión</button>
     </div>
   </nav>
 
@@ -217,7 +217,7 @@ td.itm-cel{position:relative}
         <div class="tot-card"><div class="tot-label">A iniciar</div><div class="tot-val" id="t-iniciar">0</div></div>
         <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
-        <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">â</div></div>
+        <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
       </div>
 
       <div class="twrap">
@@ -255,11 +255,11 @@ td.itm-cel{position:relative}
         <!-- PIZARRA -->
         <div class="pizarra-card">
           <span class="pizarra-label">Pizarra</span>
-          <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">â Seleccionar mesas antes de registrarse en torneos caros.
+          <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">★ Seleccionar mesas antes de registrarse en torneos caros.
 
-â Max 8 mesas
+★ Max 8 mesas
 
-â Al seleccionar mesas para registrarse, en caso de bug del HUD reiniciar al descanso</textarea>
+★ Al seleccionar mesas para registrarse, en caso de bug del HUD reiniciar al descanso</textarea>
         </div>
       </div><!-- /content-side -->
 
@@ -289,14 +289,14 @@ const sb = supabase.createClient(SURL, SKEY);
 
 let user=null, sesion=null, filas=[], salas=[];
 
-// ââ FECHA ââââââââââââââââââââââââââââ
+// ── FECHA ────────────────────────────
 function hoy(){
   const d=new Date();
   if(d.getHours()<6) d.setDate(d.getDate()-1);
   return d.toISOString().split('T')[0];
 }
 
-// ââ INIT âââââââââââââââââââââââââââââ
+// ── INIT ─────────────────────────────
 async function init(){
   const {data:{session}} = await sb.auth.getSession();
   if(session){user=session.user; await arrancar();}
@@ -307,7 +307,7 @@ function mostrarLogin(){
   document.getElementById('login').style.display='flex';
 }
 
-// ââ LOGIN âââââââââââââââââââââââââââââ
+// ── LOGIN ─────────────────────────────
 async function login(){
   const em=document.getElementById('l-em').value.trim();
   const pw=document.getElementById('l-pw').value;
@@ -328,7 +328,7 @@ async function logout(){
   document.getElementById('login').style.display='flex';
 }
 
-// ââ ARRANCAR ââââââââââââââââââââââââââ
+// ── ARRANCAR ──────────────────────────
 async function arrancar(){
   document.getElementById('loading').style.display='none';
   document.getElementById('login').style.display='none';
@@ -340,14 +340,14 @@ async function arrancar(){
   cargarPizarra();
 }
 
-// ââ SALAS âââââââââââââââââââââââââââââ
+// ── SALAS ─────────────────────────────
 async function cargarSalas(){
   const {data}=await sb.from('salas').select('sala_id,nombre').eq('activa',true).order('nombre');
   salas=data||[];
   document.getElementById('dl-salas').innerHTML=salas.map(s=>`<option value="${s.nombre}">`).join('');
 }
 
-// ââ SESIÃN ââââââââââââââââââââââââââââ
+// ── SESIÓN ────────────────────────────
 async function obtenerSesion(){
   const fecha=hoy();
   // Buscar sesión abierta de hoy
@@ -364,24 +364,36 @@ async function obtenerSesion(){
   await cargarGrilla();
 }
 
-// ââ GRILLA ââââââââââââââââââââââââââââ
-function detectarUmbral(filas){
-  const mins=filas.map(f=>{if(!f.hora)return null;const p=f.hora.split(':');return parseInt(p[0]||0)*60+parseInt(p[1]||0);}).filter(m=>m!==null);
-  if(!mins.length)return 14*60;
-  const hayVesp=mins.some(m=>m>=14*60);
-  if(!hayVesp)return 0;
-  return Math.min(...mins.filter(m=>m>=14*60));
-}
+// ── GRILLA ────────────────────────────
 function horaAMin(h, umbral){
-  // Orden nocturno: 17-23 primero, 00-16 después
+  // umbral: hora de inicio de la sesión (detectada automáticamente)
   if(!h||typeof h!=='string') return 9999;
   const parts=h.split(':');
   const hh=parseInt(parts[0])||0;
   const mm=parseInt(parts[1])||0;
   const total=hh*60+mm;
-  // Horas 00-16 se tratan como 24-40 (continuación de la noche)
-    const u = (umbral !== undefined) ? umbral : 14*60;
+  // Si la hora es menor que el umbral, es del "día siguiente" (madrugada)
+  const u = (umbral !== undefined) ? umbral : 14*60;
   return total < u ? total + 24*60 : total;
+}
+
+function detectarUmbral(filas){
+  // Encontrar la hora mínima real de la sesión como umbral
+  // Tomamos la hora más baja que aparece en la grilla
+  // Si hay hornos entre 00-13 Y entre 14-23, el umbral es la hora más baja del bloque 14-23
+  const mins = filas
+    .map(f => {
+      if(!f.hora) return null;
+      const p = f.hora.split(':');
+      return parseInt(p[0]||0)*60 + parseInt(p[1]||0);
+    })
+    .filter(m => m !== null);
+  if(!mins.length) return 14*60;
+  // Si todas las horas son < 14*60, la sesión es de madrugada pura
+  const hayVespertinas = mins.some(m => m >= 14*60);
+  if(!hayVespertinas) return 0; // ordenar normal
+  // El umbral es la menor hora vespertina (>=14hs)
+  return Math.min(...mins.filter(m => m >= 14*60));
 }
 
 async function cargarGrilla(){
@@ -407,14 +419,14 @@ function actualizarTotales(){
   document.getElementById('t-torneos').textContent=finalizados.length;
   document.getElementById('t-itm').textContent=itm;
 
-  // Tiempo sesión â timestamps reales del cambio de estado
+  // Tiempo sesión — timestamps reales del cambio de estado
   const tsInicio=filas.filter(f=>f.hora_inicio_real).map(f=>new Date(f.hora_inicio_real).getTime()).filter(t=>!isNaN(t));
   const tsFin=filas.filter(f=>f.hora_fin_real&&f.estado==='finalizado').map(f=>new Date(f.hora_fin_real).getTime()).filter(t=>!isNaN(t));
   if(tsInicio.length>0&&tsFin.length>0){
     const durMin=Math.round((Math.max(...tsFin)-Math.min(...tsInicio))/60000);
     if(durMin>0){const h=Math.floor(durMin/60),m=durMin%60;document.getElementById('t-tiempo').textContent=h+'h '+(m<10?'0':'')+m+'m';}
-    else document.getElementById('t-tiempo').textContent='â';
-  } else document.getElementById('t-tiempo').textContent='â';
+    else document.getElementById('t-tiempo').textContent='—';
+  } else document.getElementById('t-tiempo').textContent='—';
 }
 
 function fila(e){
@@ -422,7 +434,7 @@ function fila(e){
   const esFin=e.estado==='finalizado';
   const r=esFin?(e.resultado||0):null;
   const rc=r===null?'rz':r>0?'rp':r<0?'rn':'rz';
-  const rt=r===null?'â':r===0?'â':(r>0?'+':'')+r.toLocaleString('es-AR');
+  const rt=r===null?'—':r===0?'—':(r>0?'+':'')+r.toLocaleString('es-AR');
   const ec=e.estado==='en_curso'?'ec':e.estado==='finalizado'?'ef':e.estado==='cancelado'?'ex':'ei';
   const sala=e.salas?.nombre||'';
   const col=e.color||'#3a4a5a';
@@ -435,7 +447,7 @@ function fila(e){
     <td style="padding:2px 4px">
       <div class="color-btns" id="cb${id}">
         <span class="cbtn cbtn-r ${col==='#e05656'?'active':''}" onclick="updColor(${id},'#e05656',this)" title="Rojo"></span>
-        <span class="cbtn cbtn-o ${col==='#f07020'?'active':''}" onclick="updColor(${id},'#f07020',this)" title="Naranja"></span>
+        <span class="cbtn cbtn-o ${col==='#e8913a'?'active':''}" onclick="updColor(${id},'#e8913a',this)" title="Naranja"></span>
         <span class="cbtn cbtn-y ${col==='#c9a84c'?'active':''}" onclick="updColor(${id},'#c9a84c',this)" title="Amarillo"></span>
         <span class="cbtn cbtn-g ${col==='#4caf7d'?'active':''}" onclick="updColor(${id},'#4caf7d',this)" title="Verde"></span>
         <span class="cbtn cbtn-n ${col==='#3a4a5a'||!col?'active':''}" onclick="updColor(${id},'#3a4a5a',this)" title="Sin color"></span>
@@ -455,15 +467,15 @@ function fila(e){
     <td class="r"><input class="cel r" type="number" value="${e.buyin||''}" placeholder="0" min="0" step="any" onchange="updBuyin(${id},this.value)" onclick="this.select()"></td>
     <td class="r"><input class="cel r" type="number" value="${e.rebuys||''}" placeholder="0" min="0" onchange="updReb(${id},this.value)" onclick="this.select()"></td>
     <td class="r"><input class="cel r" id="crb${id}" type="number" value="${e.costo_rebuys||''}" placeholder="0" min="0" step="any" onchange="updCosto(${id},this.value)" onclick="this.select()"></td>
-    <td class="c itm-cel"><button class="itm-btn ${e.itm?'si':''}" onclick="updITM(${id},this)">${e.itm?'SÃ':'NO'}</button></td>
+    <td class="c itm-cel"><button class="itm-btn ${e.itm?'si':''}" onclick="updITM(${id},this)">${e.itm?'SÍ':'NO'}</button></td>
     <td class="r"><input class="cel r" type="number" value="${e.premio||''}" placeholder="0" min="0" step="any" onchange="updPremio(${id},this.value)" onclick="this.select()"></td>
     <td class="r ${rc}" id="res${id}">${rt}</td>
-    <td class="c"><button class="del-btn" onclick="eliminar(${id})">â</button></td>
+    <td class="c"><button class="del-btn" onclick="eliminar(${id})">✕</button></td>
   </tr>`;
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
-// ââ AGREGAR FILA ââââââââââââââââââââââ
+// ── AGREGAR FILA ──────────────────────
 async function agregarFila(){
   if(!sesion){toast('Sin sesión activa',true);return;}
   const ahora='';
@@ -480,14 +492,14 @@ async function agregarFila(){
   tr.querySelector('input[type=time]')?.focus();
 }
 
-// ââ UPDATES âââââââââââââââââââââââââââ
+// ── UPDATES ───────────────────────────
 function get(id){return filas.find(f=>f.entrada_id===id);}
 function db(id,u){sb.from('grilla_entradas').update(u).eq('entrada_id',id).then(({error})=>{if(error)toast('Error al guardar',true);});}
 function setRes(id,r){
   const c=document.getElementById(`res${id}`);if(!c)return;
-  if(r===null){c.className='r rz';c.textContent='â';return;}
+  if(r===null){c.className='r rz';c.textContent='—';return;}
   c.className='r '+(r>0?'rp':r<0?'rn':'rz');
-  c.textContent=r===0?'â':(r>0?'+':'')+r.toLocaleString('es-AR');
+  c.textContent=r===0?'—':(r>0?'+':'')+r.toLocaleString('es-AR');
 }
 function upd(id,col,val){const e=get(id);if(e)e[col]=val;db(id,{[col]:val});}
 function updHoraOrdenar(id,val){
@@ -582,7 +594,7 @@ function updITM(id,btn){
   const e=get(id);if(!e)return;
   e.itm=!e.itm;
   btn.className='itm-btn'+(e.itm?' si':'');
-  btn.textContent=e.itm?'SÃ':'NO';
+  btn.textContent=e.itm?'SÍ':'NO';
   if(e.itm) lanzarConfetti(btn);
   db(id,{itm:e.itm});
   actualizarTotales();
@@ -595,7 +607,7 @@ function lanzarConfetti(btn){
   td.querySelectorAll('.confetti-wrap').forEach(el=>el.remove());
   const wrap=document.createElement('div');
   wrap.className='confetti-wrap';
-  const colors=['#e05656','#4caf7d','#c9a84c','#6b8fa8','#f07020','#fff'];
+  const colors=['#e05656','#4caf7d','#c9a84c','#6b8fa8','#e8913a','#fff'];
   const bits=[
     {cx:'-18px',cy:'-22px',cr:'45deg'},
     {cx:'0px',  cy:'-28px',cr:'-20deg'},
@@ -621,7 +633,7 @@ async function eliminar(id){
   document.querySelector(`tr[data-id="${id}"]`)?.remove();
 }
 
-// ââ PASAR DATOS âââââââââââââââââââââââ
+// ── PASAR DATOS ───────────────────────
 function abrirPasar(){
   const fin=filas.filter(f=>f.estado==='finalizado').length;
   const tot=filas.reduce((s,f)=>s+(f.resultado||0),0);
@@ -640,14 +652,14 @@ async function pasarDatos(){
   const {error}=await sb.from('sesiones')
     .update({estado:'cerrada',resultado_total:tot}).eq('sesion_id',sesion.sesion_id);
   if(error){toast('Error al cerrar sesión',true);return;}
-  toast('¡Datos pasados! Sesión cerrada â');
+  toast('¡Datos pasados! Sesión cerrada ✓');
   sesion=null;filas=[];
   document.getElementById('tbody').innerHTML='';
   setTimeout(()=>obtenerSesion(),800);
 }
 function cerrarModal(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));}
 
-// ââ TOAST âââââââââââââââââââââââââââââ
+// ── TOAST ─────────────────────────────
 function toast(msg,err=false){
   const el=document.getElementById('toast');
   el.textContent=msg;el.className='toast'+(err?' err':'');
@@ -655,7 +667,7 @@ function toast(msg,err=false){
   setTimeout(()=>el.classList.remove('show'),3000);
 }
 
-// ââ KEYBOARD ââââââââââââââââââââââââââ
+// ── KEYBOARD ──────────────────────────
 document.getElementById('l-pw').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 document.getElementById('l-em').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 document.getElementById('lbtn').addEventListener('click',login);
