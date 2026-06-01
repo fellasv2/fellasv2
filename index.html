@@ -65,9 +65,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
 .content{padding:18px 24px;flex:1;display:flex;gap:20px;align-items:flex-start}
 .content-main{flex:1;min-width:0}
 .content-side{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
-.lema-card{background:var(--card);border:1px solid var(--border);padding:14px;font-size:10px;line-height:1.9;color:var(--muted2);letter-spacing:0.5px}
-.lema-card strong{display:block;font-family:'Syne',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.lema-word{display:block;color:var(--silver);font-weight:500}
+.lema-card{background:var(--card);border:1px solid var(--border);padding:16px;line-height:2;color:var(--muted2)}
+.lema-card strong{display:block;font-family:'Syne',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.lema-word{display:block;color:var(--silver);font-size:13px;font-weight:500;letter-spacing:0.5px}
 
 /* ── TOOLBAR ── */
 
@@ -86,6 +86,8 @@ tbody tr:hover{background:rgba(107,143,168,.025)}
 tbody td{padding:4px 8px;vertical-align:middle}
 
 .cel{background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:100%;padding:3px 2px;border-bottom:1px solid transparent;transition:border-color .12s}
+.cel[type=number]::-webkit-inner-spin-button,.cel[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.cel[type=number]{-moz-appearance:textfield}
 .cel:focus{border-bottom-color:var(--silver)}
 .cel::placeholder{color:var(--muted)}
 .cel.r{text-align:right}
@@ -402,7 +404,8 @@ function fila(e){
   const ec=e.estado==='en_curso'?'ec':e.estado==='finalizado'?'ef':e.estado==='cancelado'?'ex':'ei';
   const sala=e.salas?.nombre||'';
   const col=e.color||'#3a4a5a';
-  return `<tr data-id="${id}">
+  const borderCol=col&&col!=='#3a4a5a'?col:'transparent';
+  return `<tr data-id="${id}" style="border-left:3px solid ${borderCol}">
     <td style="padding:2px 4px;white-space:nowrap">
       <button class="add-next-btn" onclick="agregarFila()" title="Agregar fila" style="font-size:16px;padding:0 4px">+</button>
     </td>
@@ -415,7 +418,7 @@ function fila(e){
         <span class="cbtn cbtn-n ${col==='#3a4a5a'||!col?'active':''}" onclick="updColor(${id},'#3a4a5a',this)" title="Sin color"></span>
       </div>
     </td>
-    <td><input class="cel" type="text" value="${e.hora||''}" placeholder="00:00" style="width:48px" onblur="updHoraOrdenar(${id},this.value)"></td>
+    <td><input class="cel" type="text" value="${(e.hora||'').slice(0,5)}" placeholder="00:00" style="width:48px" onblur="updHoraOrdenar(${id},this.value)"></td>
     <td>
       <select class="esel ${ec}" onchange="updE(${id},this)">
         <option value="a_iniciar" ${e.estado==='a_iniciar'?'selected':''}>A iniciar</option>
@@ -474,10 +477,12 @@ function updHoraOrdenar(id,val){
 }
 function updColor(id,col,btn){
   const e=get(id);if(e)e.color=col;
-  // Actualizar activo visualmente
   const cb=document.getElementById('cb'+id);
   if(cb) cb.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  // Actualizar borde de la fila
+  const tr=document.querySelector(`tr[data-id="${id}"]`);
+  if(tr) tr.style.borderLeft=col&&col!=='#3a4a5a'?`3px solid ${col}`:'3px solid transparent';
   db(id,{color:col});
 }
 function updE(id,sel){
