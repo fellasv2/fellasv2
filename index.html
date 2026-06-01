@@ -62,7 +62,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
 .main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
 .topbar{height:48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:50}
 .topbar-t{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-.content{padding:18px 24px;flex:1}
+.content{padding:18px 24px;flex:1;display:flex;gap:20px;align-items:flex-start}
+.content-main{flex:1;min-width:0}
+.content-side{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+.lema-card{background:var(--card);border:1px solid var(--border);padding:14px;font-size:10px;line-height:1.9;color:var(--muted2);letter-spacing:0.5px}
+.lema-card strong{display:block;font-family:'Syne',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.lema-word{display:block;color:var(--silver);font-weight:500}
 
 /* ── TOOLBAR ── */
 
@@ -120,21 +125,26 @@ tbody td{padding:4px 8px;vertical-align:middle}
 .toast.err{background:var(--red);color:#fff}
 
 /* ── TOTALES ── */
-.totales{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
-.tot-card{background:var(--card);border:1px solid var(--border);padding:10px 16px;min-width:100px}
+.totales{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tot-card{background:var(--card);border:1px solid var(--border);padding:10px 16px;min-width:90px}
 .tot-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .tot-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text)}
-.tot-val.pos{color:var(--green)} .tot-val.neg{color:var(--red)}
 
 /* ── PIZARRA ── */
-.pizarra-wrap{margin-top:16px}
-.pizarra-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.pizarra{width:100%;min-height:120px;background:var(--card);border:1px solid var(--border);color:var(--muted2);font-family:'DM Mono',monospace;font-size:11px;padding:12px 14px;resize:vertical;outline:none;line-height:1.7;transition:border-color .2s}
-.pizarra:focus{border-color:var(--border2);color:var(--text)}
+.pizarra-card{background:var(--card);border:1px solid var(--border)}
+.pizarra-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 12px 0;display:block}
+.pizarra{width:100%;min-height:300px;background:transparent;border:none;color:var(--muted2);font-family:'DM Mono',monospace;font-size:11px;padding:8px 12px 12px;resize:none;outline:none;line-height:1.8;transition:color .2s}
+.pizarra:focus{color:var(--text)}
 
 /* ── COLOR TORNEO ── */
-.color-dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.15);cursor:pointer;flex-shrink:0;display:inline-block}
-input[type=color].color-picker{width:0;height:0;opacity:0;position:absolute;pointer-events:none}
+.color-btns{display:flex;gap:3px;align-items:center}
+.cbtn{width:13px;height:13px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex-shrink:0;transition:border-color .15s}
+.cbtn:hover,.cbtn.active{border-color:rgba(255,255,255,.7)}
+.cbtn-r{background:#e05656}
+.cbtn-o{background:#e8913a}
+.cbtn-y{background:#c9a84c}
+.cbtn-g{background:#4caf7d}
+.cbtn-n{background:#2a3540;border:1px solid #3a4a5a}
 </style>
 </head>
 <body>
@@ -185,25 +195,24 @@ input[type=color].color-picker{width:0;height:0;opacity:0;position:absolute;poin
       <span class="topbar-t">Grilla del día</span>
     </div>
     <div class="content">
+      <div class="content-main">
       <!-- TOTALES -->
       <div class="totales" id="totales">
-        <div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val" id="t-torneos">0</div></div>
-        <div class="tot-card"><div class="tot-label">En curso</div><div class="tot-val" id="t-curso">0</div></div>
+        <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
-        <div class="tot-card"><div class="tot-label">Resultado</div><div class="tot-val" id="t-resultado">—</div></div>
         <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
       </div>
 
       <div class="twrap">
         <table>
           <colgroup>
-            <col style="width:28px"><col class="ch"><col class="ce"><col class="cn"><col class="cs">
+            <col style="width:24px"><col style="width:72px"><col class="ch"><col class="ce"><col class="cn"><col class="cs">
             <col class="cb"><col class="cr"><col class="crb">
             <col class="ci"><col class="cp"><col class="crs"><col class="cd">
           </colgroup>
           <thead>
             <tr>
-              <th></th><th>Hora</th><th>Estado</th><th>Nombre</th><th>Sala</th>
+              <th></th><th></th><th>Hora</th><th>Estado</th><th>Nombre</th><th>Sala</th>
               <th class="r">Buy In</th><th class="r">Rebuy</th><th class="r">Costo RB</th>
               <th class="c">ITM</th><th class="r">Premio</th><th class="r">Resultado</th>
               <th></th>
@@ -213,17 +222,29 @@ input[type=color].color-picker{width:0;height:0;opacity:0;position:absolute;poin
         </table>
       </div>
 
-      <!-- PIZARRA -->
-      <div class="pizarra-wrap">
-        <div class="pizarra-label">Pizarra del equipo</div>
-        <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">★ SINCERIDAD · CAPACIDAD · CREDIBILIDAD · COMPROMISO · INTUICIÓN
+      </div><!-- /content-main -->
 
-★ Seleccionar mesas antes de registrarse en torneos caros.
+      <!-- PANEL DERECHO -->
+      <div class="content-side">
+        <!-- LEMA -->
+        <div class="lema-card">
+          <strong>Valores</strong>
+          <span class="lema-word">Sinceridad</span>
+          <span class="lema-word">Capacidad</span>
+          <span class="lema-word">Credibilidad</span>
+          <span class="lema-word">Compromiso</span>
+          <span class="lema-word">Intuición</span>
+        </div>
+        <!-- PIZARRA -->
+        <div class="pizarra-card">
+          <span class="pizarra-label">Pizarra</span>
+          <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">★ Seleccionar mesas antes de registrarse en torneos caros.
 
 ★ Max 8 mesas
 
 ★ Al seleccionar mesas para registrarse, en caso de bug del HUD reiniciar al descanso</textarea>
-      </div>
+        </div>
+      </div><!-- /content-side -->
 
     </div>
   </div>
@@ -352,37 +373,24 @@ function renderizar(){
   document.getElementById('tbody').innerHTML=filas.map(f=>fila(f)).join('');
 }
 function actualizarTotales(){
-  const activos=filas.filter(f=>f.estado!=='cancelado');
-  const enCurso=filas.filter(f=>f.estado==='en_curso');
   const finalizados=filas.filter(f=>f.estado==='finalizado');
   const itm=filas.filter(f=>f.itm).length;
-  const resultado=finalizados.reduce((s,f)=>s+(f.resultado||0),0);
 
-  document.getElementById('t-torneos').textContent=activos.length;
-  document.getElementById('t-curso').textContent=enCurso.length;
+  document.getElementById('t-torneos').textContent=finalizados.length;
   document.getElementById('t-itm').textContent=itm;
 
-  const resEl=document.getElementById('t-resultado');
-  if(finalizados.length===0){resEl.textContent='—';resEl.className='tot-val';}
-  else{
-    resEl.textContent=(resultado>=0?'+':'')+resultado.toLocaleString('es-AR');
-    resEl.className='tot-val '+(resultado>0?'pos':resultado<0?'neg':'');
-  }
-
-  // Tiempo sesión: primer en_curso o finalizado hasta último finalizado
-  const conHoraInicio=filas.filter(f=>f.hora&&(f.estado==='en_curso'||f.estado==='finalizado'));
-  const conHoraFin=filas.filter(f=>f.hora&&f.estado==='finalizado');
-  if(conHoraInicio.length>0&&conHoraFin.length>0){
-    const minOrd=f=>horaAMin(f.hora);
-    const inicio=Math.min(...conHoraInicio.map(minOrd));
-    const fin=Math.max(...conHoraFin.map(minOrd));
-    const durMin=fin-inicio;
-    if(durMin>0){
-      const h=Math.floor(durMin/60);
-      const m=durMin%60;
+  // Tiempo sesión: primer torneo en_curso o finalizado → último finalizado
+  const conInicio=filas.filter(f=>f.hora&&(f.estado==='en_curso'||f.estado==='finalizado'));
+  const conFin=filas.filter(f=>f.hora&&f.estado==='finalizado');
+  if(conInicio.length>0&&conFin.length>0){
+    const inicio=Math.min(...conInicio.map(f=>horaAMin(f.hora)));
+    const fin=Math.max(...conFin.map(f=>horaAMin(f.hora)));
+    const dur=fin-inicio;
+    if(dur>0){
+      const h=Math.floor(dur/60), m=dur%60;
       document.getElementById('t-tiempo').textContent=h+'h '+(m<10?'0':'')+m+'m';
-    } else {document.getElementById('t-tiempo').textContent='—';}
-  } else {document.getElementById('t-tiempo').textContent='—';}
+    } else document.getElementById('t-tiempo').textContent='—';
+  } else document.getElementById('t-tiempo').textContent='—';
 }
 
 function fila(e){
@@ -395,9 +403,17 @@ function fila(e){
   const sala=e.salas?.nombre||'';
   const col=e.color||'#3a4a5a';
   return `<tr data-id="${id}">
-    <td class="c" style="padding:4px 4px">
-      <span class="color-dot" style="background:${col}" onclick="abrirColor(${id},this)" title="Color del torneo"></span>
-      <input type="color" id="cp${id}" value="${col}" onchange="updColor(${id},this)">
+    <td style="padding:2px 4px;white-space:nowrap">
+      <button class="add-next-btn" onclick="agregarFila()" title="Agregar fila" style="font-size:16px;padding:0 4px">+</button>
+    </td>
+    <td style="padding:2px 4px">
+      <div class="color-btns" id="cb${id}">
+        <span class="cbtn cbtn-r ${col==='#e05656'?'active':''}" onclick="updColor(${id},'#e05656',this)" title="Rojo"></span>
+        <span class="cbtn cbtn-o ${col==='#e8913a'?'active':''}" onclick="updColor(${id},'#e8913a',this)" title="Naranja"></span>
+        <span class="cbtn cbtn-y ${col==='#c9a84c'?'active':''}" onclick="updColor(${id},'#c9a84c',this)" title="Amarillo"></span>
+        <span class="cbtn cbtn-g ${col==='#4caf7d'?'active':''}" onclick="updColor(${id},'#4caf7d',this)" title="Verde"></span>
+        <span class="cbtn cbtn-n ${col==='#3a4a5a'||!col?'active':''}" onclick="updColor(${id},'#3a4a5a',this)" title="Sin color"></span>
+      </div>
     </td>
     <td><input class="cel" type="text" value="${e.hora||''}" placeholder="00:00" style="width:48px" onblur="updHoraOrdenar(${id},this.value)"></td>
     <td>
@@ -416,7 +432,7 @@ function fila(e){
     <td class="c"><button class="itm-btn ${e.itm?'si':''}" onclick="updITM(${id},this)">${e.itm?'SÍ':'NO'}</button></td>
     <td class="r"><input class="cel r" type="number" value="${e.premio||''}" placeholder="0" min="0" step="any" onchange="updPremio(${id},this.value)" onclick="this.select()"></td>
     <td class="r ${rc}" id="res${id}">${rt}</td>
-    <td class="c" style="white-space:nowrap"><button class="add-next-btn" onclick="agregarFila()" title="Agregar fila">+</button><button class="del-btn" onclick="eliminar(${id})">✕</button></td>
+    <td class="c"><button class="del-btn" onclick="eliminar(${id})">✕</button></td>
   </tr>`;
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
@@ -456,15 +472,12 @@ function updHoraOrdenar(id,val){
   renderizar();
   actualizarTotales();
 }
-function abrirColor(id,dot){
-  const picker=document.getElementById('cp'+id);
-  if(picker){picker.style.pointerEvents='all';picker.click();picker.style.pointerEvents='none';}
-}
-function updColor(id,picker){
-  const col=picker.value;
+function updColor(id,col,btn){
   const e=get(id);if(e)e.color=col;
-  const dot=picker.previousElementSibling;
-  if(dot)dot.style.background=col;
+  // Actualizar activo visualmente
+  const cb=document.getElementById('cb'+id);
+  if(cb) cb.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
   db(id,{color:col});
 }
 function updE(id,sel){
