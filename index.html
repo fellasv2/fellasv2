@@ -94,7 +94,10 @@ tbody td{padding:4px 8px;vertical-align:middle}
 
 .esel{background:transparent;border:none;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;outline:none;width:100%;padding:3px 0;-webkit-appearance:none;border-bottom:1px solid transparent;transition:border-color .12s}
 .esel:focus{border-bottom-color:var(--silver)}
-.ei{color:var(--muted2)} .ec{color:var(--accent)} .ef{color:var(--green)} .ex{color:var(--red)}
+.ei{color:#854d0e;background:#fef9c3;border-radius:2px;padding:2px 6px}
+.ec{color:#166534;background:#bbf7d0;border-radius:2px;padding:2px 6px}
+.ef{color:#14532d;background:#4ade80;border-radius:2px;padding:2px 6px}
+.ex{color:#7c2d12;background:#fed7aa;border-radius:2px;padding:2px 6px}
 
 .itm-btn{background:none;border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;padding:2px 0;cursor:pointer;border-radius:2px;width:100%;transition:all .15s}
 .itm-btn.si{background:rgba(76,175,125,.15);border-color:var(--green);color:var(--green);font-weight:700}
@@ -122,6 +125,15 @@ tbody td{padding:4px 8px;vertical-align:middle}
 .confirm-btn:hover{opacity:.85}
 
 /* ── TOAST ── */
+/* ── CONFETTI ITM ── */
+.confetti-wrap{position:absolute;top:-8px;left:50%;transform:translateX(-50%);pointer-events:none;width:40px;height:30px;overflow:visible}
+.conf-bit{position:absolute;width:5px;height:5px;border-radius:1px;opacity:0;animation:conf-fly 0.8s ease-out forwards}
+@keyframes conf-fly{
+  0%{opacity:1;transform:translate(0,0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translate(var(--cx),var(--cy)) rotate(var(--cr)) scale(0.5)}
+}
+td.itm-cel{position:relative}
+
 .toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;z-index:9999;transform:translateY(60px);opacity:0;transition:all .25s;background:var(--silver);color:var(--bg)}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.err{background:var(--red);color:#fff}
@@ -200,6 +212,7 @@ tbody td{padding:4px 8px;vertical-align:middle}
       <div class="content-main">
       <!-- TOTALES -->
       <div class="totales" id="totales">
+        <div class="tot-card"><div class="tot-label">A iniciar</div><div class="tot-val" id="t-iniciar">0</div></div>
         <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
         <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
@@ -364,7 +377,7 @@ function horaAMin(h){
 async function cargarGrilla(){
   if(!sesion) return;
   const {data}=await sb.from('grilla_entradas')
-    .select('*,salas(nombre)').eq('sesion_id',sesion.sesion_id)
+    .select('entrada_id,sesion_id,nombre_torneo,sala_id,hora,buyin,rebuys,costo_rebuys,itm,premio,resultado,estado,color,hora_inicio_real,hora_fin_real,salas(nombre)').eq('sesion_id',sesion.sesion_id)
     .order('entrada_id',{ascending:true});
   filas=(data||[]).sort((a,b)=>horaAMin(a.hora)-horaAMin(b.hora));
   renderizar();
@@ -375,23 +388,21 @@ function renderizar(){
   document.getElementById('tbody').innerHTML=filas.map(f=>fila(f)).join('');
 }
 function actualizarTotales(){
+  const aIniciar=filas.filter(f=>f.estado==='a_iniciar').length;
   const finalizados=filas.filter(f=>f.estado==='finalizado');
   const itm=filas.filter(f=>f.itm).length;
 
+  document.getElementById('t-iniciar').textContent=aIniciar;
   document.getElementById('t-torneos').textContent=finalizados.length;
   document.getElementById('t-itm').textContent=itm;
 
-  // Tiempo sesión: primer torneo en_curso o finalizado → último finalizado
-  const conInicio=filas.filter(f=>f.hora&&(f.estado==='en_curso'||f.estado==='finalizado'));
-  const conFin=filas.filter(f=>f.hora&&f.estado==='finalizado');
-  if(conInicio.length>0&&conFin.length>0){
-    const inicio=Math.min(...conInicio.map(f=>horaAMin(f.hora)));
-    const fin=Math.max(...conFin.map(f=>horaAMin(f.hora)));
-    const dur=fin-inicio;
-    if(dur>0){
-      const h=Math.floor(dur/60), m=dur%60;
-      document.getElementById('t-tiempo').textContent=h+'h '+(m<10?'0':'')+m+'m';
-    } else document.getElementById('t-tiempo').textContent='—';
+  // Tiempo sesión — timestamps reales del cambio de estado
+  const tsInicio=filas.filter(f=>f.hora_inicio_real).map(f=>new Date(f.hora_inicio_real).getTime()).filter(t=>!isNaN(t));
+  const tsFin=filas.filter(f=>f.hora_fin_real&&f.estado==='finalizado').map(f=>new Date(f.hora_fin_real).getTime()).filter(t=>!isNaN(t));
+  if(tsInicio.length>0&&tsFin.length>0){
+    const durMin=Math.round((Math.max(...tsFin)-Math.min(...tsInicio))/60000);
+    if(durMin>0){const h=Math.floor(durMin/60),m=durMin%60;document.getElementById('t-tiempo').textContent=h+'h '+(m<10?'0':'')+m+'m';}
+    else document.getElementById('t-tiempo').textContent='—';
   } else document.getElementById('t-tiempo').textContent='—';
 }
 
@@ -404,8 +415,9 @@ function fila(e){
   const ec=e.estado==='en_curso'?'ec':e.estado==='finalizado'?'ef':e.estado==='cancelado'?'ex':'ei';
   const sala=e.salas?.nombre||'';
   const col=e.color||'#3a4a5a';
-  const borderCol=col&&col!=='#3a4a5a'?col:'transparent';
-  return `<tr data-id="${id}" style="border-left:3px solid ${borderCol}">
+  const bgCol=col&&col!=='#3a4a5a'?col+'28':'transparent';
+  const bdCol=col&&col!=='#3a4a5a'?col+'88':'transparent';
+  return `<tr data-id="${id}">
     <td style="padding:2px 4px;white-space:nowrap">
       <button class="add-next-btn" onclick="agregarFila()" title="Agregar fila" style="font-size:16px;padding:0 4px">+</button>
     </td>
@@ -427,12 +439,12 @@ function fila(e){
         <option value="cancelado" ${e.estado==='cancelado'?'selected':''}>Cancelado</option>
       </select>
     </td>
-    <td><input class="cel" type="text" value="${esc(e.nombre_torneo||'')}" placeholder="Nombre" onblur="upd(${id},'nombre_torneo',this.value)"></td>
+    <td id="nt${id}" style="background:${bgCol};border-left:2px solid ${bdCol};transition:background .2s"><input class="cel" type="text" value="${esc(e.nombre_torneo||'')}" placeholder="Nombre" onblur="upd(${id},'nombre_torneo',this.value)"></td>
     <td><input class="cel" type="text" value="${esc(sala)}" placeholder="Sala" list="dl-salas" onblur="updSala(${id},this.value)"></td>
     <td class="r"><input class="cel r" type="number" value="${e.buyin||''}" placeholder="0" min="0" step="any" onchange="updBuyin(${id},this.value)" onclick="this.select()"></td>
     <td class="r"><input class="cel r" type="number" value="${e.rebuys||''}" placeholder="0" min="0" onchange="updReb(${id},this.value)" onclick="this.select()"></td>
     <td class="r"><input class="cel r" id="crb${id}" type="number" value="${e.costo_rebuys||''}" placeholder="0" min="0" step="any" onchange="updCosto(${id},this.value)" onclick="this.select()"></td>
-    <td class="c"><button class="itm-btn ${e.itm?'si':''}" onclick="updITM(${id},this)">${e.itm?'SÍ':'NO'}</button></td>
+    <td class="c itm-cel"><button class="itm-btn ${e.itm?'si':''}" onclick="updITM(${id},this)">${e.itm?'SÍ':'NO'}</button></td>
     <td class="r"><input class="cel r" type="number" value="${e.premio||''}" placeholder="0" min="0" step="any" onchange="updPremio(${id},this.value)" onclick="this.select()"></td>
     <td class="r ${rc}" id="res${id}">${rt}</td>
     <td class="c"><button class="del-btn" onclick="eliminar(${id})">✕</button></td>
@@ -480,9 +492,12 @@ function updColor(id,col,btn){
   const cb=document.getElementById('cb'+id);
   if(cb) cb.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  // Actualizar borde de la fila
-  const tr=document.querySelector(`tr[data-id="${id}"]`);
-  if(tr) tr.style.borderLeft=col&&col!=='#3a4a5a'?`3px solid ${col}`:'3px solid transparent';
+  // Actualizar fondo celda nombre
+  const nt=document.getElementById('nt'+id);
+  if(nt){
+    nt.style.background=col&&col!=='#3a4a5a'?col+'28':'transparent';
+    nt.style.borderLeft=col&&col!=='#3a4a5a'?`2px solid ${col}88`:'2px solid transparent';
+  }
   db(id,{color:col});
 }
 function updE(id,sel){
@@ -490,9 +505,17 @@ function updE(id,sel){
   sel.className='esel '+cls;
   const e=get(id);if(!e)return;
   e.estado=sel.value;
+  const ahora=new Date().toISOString();
+  const upd={estado:sel.value};
+  if(sel.value==='en_curso'&&!e.hora_inicio_real){e.hora_inicio_real=ahora;upd.hora_inicio_real=ahora;}
+  if(sel.value==='finalizado'){
+    e.hora_fin_real=ahora;upd.hora_fin_real=ahora;
+    if(!e.hora_inicio_real){e.hora_inicio_real=ahora;upd.hora_inicio_real=ahora;}
+  }
   const res=calcRes(e);
-  if(res!==null){e.resultado=res;setRes(id,res);db(id,{estado:sel.value,resultado:res});}
-  else{e.resultado=0;setRes(id,null);db(id,{estado:sel.value,resultado:0});}
+  if(res!==null){e.resultado=res;setRes(id,res);upd.resultado=res;}
+  else{e.resultado=0;setRes(id,null);upd.resultado=0;}
+  db(id,upd);
   actualizarTotales();
 }
 function updSala(id,nm){
@@ -548,8 +571,36 @@ function updITM(id,btn){
   e.itm=!e.itm;
   btn.className='itm-btn'+(e.itm?' si':'');
   btn.textContent=e.itm?'SÍ':'NO';
+  if(e.itm) lanzarConfetti(btn);
   db(id,{itm:e.itm});
   actualizarTotales();
+}
+
+function lanzarConfetti(btn){
+  const td=btn.closest('td');
+  if(!td) return;
+  // Limpiar confettis previos
+  td.querySelectorAll('.confetti-wrap').forEach(el=>el.remove());
+  const wrap=document.createElement('div');
+  wrap.className='confetti-wrap';
+  const colors=['#e05656','#4caf7d','#c9a84c','#6b8fa8','#e8913a','#fff'];
+  const bits=[
+    {cx:'-18px',cy:'-22px',cr:'45deg'},
+    {cx:'0px',  cy:'-28px',cr:'-20deg'},
+    {cx:'18px', cy:'-22px',cr:'60deg'},
+    {cx:'-12px',cy:'-18px',cr:'-50deg'},
+    {cx:'12px', cy:'-18px',cr:'30deg'},
+    {cx:'-6px', cy:'-25px',cr:'15deg'},
+    {cx:'6px',  cy:'-25px',cr:'-35deg'},
+  ];
+  bits.forEach((b,i)=>{
+    const bit=document.createElement('div');
+    bit.className='conf-bit';
+    bit.style.cssText=`background:${colors[i%colors.length]};left:50%;top:0;--cx:${b.cx};--cy:${b.cy};--cr:${b.cr};animation-delay:${i*30}ms`;
+    wrap.appendChild(bit);
+  });
+  td.appendChild(wrap);
+  setTimeout(()=>wrap.remove(), 1200);
 }
 async function eliminar(id){
   if(!confirm('¿Eliminar este torneo?'))return;
