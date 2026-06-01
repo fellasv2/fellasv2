@@ -157,7 +157,7 @@ td.itm-cel{position:relative}
 .cbtn{width:13px;height:13px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex-shrink:0;transition:border-color .15s}
 .cbtn:hover,.cbtn.active{border-color:rgba(255,255,255,.7)}
 .cbtn-r{background:#e05656}
-.cbtn-o{background:#e8913a}
+.cbtn-o{background:#f07020}
 .cbtn-y{background:#e8d030}
 .cbtn-g{background:#4caf7d}
 .cbtn-n{background:#2a3540;border:1px solid #3a4a5a}
@@ -365,7 +365,14 @@ async function obtenerSesion(){
 }
 
 // ââ GRILLA ââââââââââââââââââââââââââââ
-function horaAMin(h){
+function detectarUmbral(filas){
+  const mins=filas.map(f=>{if(!f.hora)return null;const p=f.hora.split(':');return parseInt(p[0]||0)*60+parseInt(p[1]||0);}).filter(m=>m!==null);
+  if(!mins.length)return 14*60;
+  const hayVesp=mins.some(m=>m>=14*60);
+  if(!hayVesp)return 0;
+  return Math.min(...mins.filter(m=>m>=14*60));
+}
+function horaAMin(h, umbral){
   // Orden nocturno: 17-23 primero, 00-16 despuÃ©s
   if(!h||typeof h!=='string') return 9999;
   const parts=h.split(':');
@@ -373,7 +380,8 @@ function horaAMin(h){
   const mm=parseInt(parts[1])||0;
   const total=hh*60+mm;
   // Horas 00-16 se tratan como 24-40 (continuaciÃ³n de la noche)
-  return hh<14 ? total+24*60 : total;
+    const u = (umbral !== undefined) ? umbral : 14*60;
+  return total < u ? total + 24*60 : total;
 }
 
 async function cargarGrilla(){
@@ -381,7 +389,8 @@ async function cargarGrilla(){
   const {data}=await sb.from('grilla_entradas')
     .select('entrada_id,sesion_id,nombre_torneo,sala_id,hora,buyin,rebuys,costo_rebuys,itm,premio,resultado,estado,color,hora_inicio_real,hora_fin_real,salas(nombre)').eq('sesion_id',sesion.sesion_id)
     .order('entrada_id',{ascending:true});
-  filas=(data||[]).sort((a,b)=>horaAMin(a.hora)-horaAMin(b.hora));
+  const _u=detectarUmbral(data||[]);
+  filas=(data||[]).sort((a,b)=>horaAMin(a.hora,_u)-horaAMin(b.hora,_u));
   renderizar();
   actualizarTotales();
 }
@@ -485,7 +494,8 @@ function updHoraOrdenar(id,val){
   const e=get(id);if(e)e.hora=val;
   db(id,{hora:val});
   // Reordenar filas en DOM
-  filas.sort((a,b)=>horaAMin(a.hora)-horaAMin(b.hora));
+  const _u2=detectarUmbral(filas);
+  filas.sort((a,b)=>horaAMin(a.hora,_u2)-horaAMin(b.hora,_u2));
   renderizar();
   actualizarTotales();
 }
