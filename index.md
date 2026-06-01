@@ -1,13 +1,5 @@
-[index.html](https://github.com/user-attachments/files/28475630/index.html)
-## Hi there 👋
-
-<!--
-**fellasv2/fellasv2** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...<!DOCTYPE html>
+[index.html](https://github.com/user-attachments/files/28475676/index.html)
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -480,11 +472,3 @@ init();
 </script>
 </body>
 </html>
-
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
