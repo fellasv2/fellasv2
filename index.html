@@ -173,13 +173,13 @@ td.itm-cel{position:relative}
 <div id="login">
   <div class="lbox">
     <div class="logo" style="font-size:22px">FELLAS <span>v2</span></div>
-    <div class="ltag">Sistema de gestiÃ³n</div>
+    <div class="ltag">Sistema de gestión</div>
     <div class="field">
       <label>Email</label>
       <input type="email" id="l-em" placeholder="tu@email.com" autocomplete="email">
     </div>
     <div class="field">
-      <label>ContraseÃ±a</label>
+      <label>Contraseña</label>
       <input type="password" id="l-pw" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="current-password">
     </div>
     <button class="lbtn" id="lbtn">ENTRAR</button>
@@ -202,13 +202,13 @@ td.itm-cel{position:relative}
       </button>
     </div>
     <div class="sb-ftr">
-      <button class="logout-btn" onclick="logout()">â» Cerrar sesiÃ³n</button>
+      <button class="logout-btn" onclick="logout()">â» Cerrar sesión</button>
     </div>
   </nav>
 
   <div class="main">
     <div class="topbar">
-      <span class="topbar-t">Grilla del dÃ­a</span>
+      <span class="topbar-t">Grilla del día</span>
     </div>
     <div class="content">
       <div class="content-main">
@@ -217,7 +217,7 @@ td.itm-cel{position:relative}
         <div class="tot-card"><div class="tot-label">A iniciar</div><div class="tot-val" id="t-iniciar">0</div></div>
         <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
-        <div class="tot-card"><div class="tot-label">Tiempo sesiÃ³n</div><div class="tot-val" id="t-tiempo" style="font-size:14px">â</div></div>
+        <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">â</div></div>
       </div>
 
       <div class="twrap">
@@ -250,7 +250,7 @@ td.itm-cel{position:relative}
           <span class="lema-word">Capacidad</span>
           <span class="lema-word">Credibilidad</span>
           <span class="lema-word">Compromiso</span>
-          <span class="lema-word">IntuiciÃ³n</span>
+          <span class="lema-word">Intuición</span>
         </div>
         <!-- PIZARRA -->
         <div class="pizarra-card">
@@ -270,7 +270,7 @@ td.itm-cel{position:relative}
 <!-- MODAL PASAR DATOS -->
 <div class="overlay" id="modal-pasar">
   <div class="modal">
-    <div class="modal-t">Cerrar sesiÃ³n del dÃ­a</div>
+    <div class="modal-t">Cerrar sesión del día</div>
     <div class="modal-b" id="modal-body">Resumen de la jornada.</div>
     <div class="modal-a">
       <button class="cancel-btn" onclick="cerrarModal()">Cancelar</button>
@@ -313,10 +313,10 @@ async function login(){
   const pw=document.getElementById('l-pw').value;
   const btn=document.getElementById('lbtn');
   const err=document.getElementById('lerr');
-  if(!em||!pw){showErr('CompletÃ¡ los dos campos');return;}
+  if(!em||!pw){showErr('Completá los dos campos');return;}
   btn.disabled=true; btn.textContent='ENTRANDO...'; err.style.display='none';
   const {data,error}=await sb.auth.signInWithPassword({email:em,password:pw});
-  if(error){showErr('Email o contraseÃ±a incorrectos');btn.disabled=false;btn.textContent='ENTRAR';return;}
+  if(error){showErr('Email o contraseña incorrectos');btn.disabled=false;btn.textContent='ENTRAR';return;}
   user=data.user; await arrancar();
 }
 function showErr(m){const e=document.getElementById('lerr');e.textContent=m;e.style.display='block';}
@@ -350,7 +350,7 @@ async function cargarSalas(){
 // ââ SESIÃN ââââââââââââââââââââââââââââ
 async function obtenerSesion(){
   const fecha=hoy();
-  // Buscar sesiÃ³n abierta de hoy
+  // Buscar sesión abierta de hoy
   const {data:ex}=await sb.from('sesiones')
     .select('*').eq('jugador_id',user.id).eq('fecha',fecha).eq('estado','abierta')
     .order('sesion_id',{ascending:false}).limit(1);
@@ -358,7 +358,7 @@ async function obtenerSesion(){
   else{
     const {data:nv,error}=await sb.from('sesiones')
       .insert({jugador_id:user.id,fecha,estado:'abierta'}).select();
-    if(error){toast('Error al crear sesiÃ³n: '+error.message,true);return;}
+    if(error){toast('Error al crear sesión: '+error.message,true);return;}
     sesion=nv[0];
   }
   await cargarGrilla();
@@ -373,13 +373,13 @@ function detectarUmbral(filas){
   return Math.min(...mins.filter(m=>m>=14*60));
 }
 function horaAMin(h, umbral){
-  // Orden nocturno: 17-23 primero, 00-16 despuÃ©s
+  // Orden nocturno: 17-23 primero, 00-16 después
   if(!h||typeof h!=='string') return 9999;
   const parts=h.split(':');
   const hh=parseInt(parts[0])||0;
   const mm=parseInt(parts[1])||0;
   const total=hh*60+mm;
-  // Horas 00-16 se tratan como 24-40 (continuaciÃ³n de la noche)
+  // Horas 00-16 se tratan como 24-40 (continuación de la noche)
     const u = (umbral !== undefined) ? umbral : 14*60;
   return total < u ? total + 24*60 : total;
 }
@@ -407,7 +407,7 @@ function actualizarTotales(){
   document.getElementById('t-torneos').textContent=finalizados.length;
   document.getElementById('t-itm').textContent=itm;
 
-  // Tiempo sesiÃ³n â timestamps reales del cambio de estado
+  // Tiempo sesión â timestamps reales del cambio de estado
   const tsInicio=filas.filter(f=>f.hora_inicio_real).map(f=>new Date(f.hora_inicio_real).getTime()).filter(t=>!isNaN(t));
   const tsFin=filas.filter(f=>f.hora_fin_real&&f.estado==='finalizado').map(f=>new Date(f.hora_fin_real).getTime()).filter(t=>!isNaN(t));
   if(tsInicio.length>0&&tsFin.length>0){
@@ -435,7 +435,7 @@ function fila(e){
     <td style="padding:2px 4px">
       <div class="color-btns" id="cb${id}">
         <span class="cbtn cbtn-r ${col==='#e05656'?'active':''}" onclick="updColor(${id},'#e05656',this)" title="Rojo"></span>
-        <span class="cbtn cbtn-o ${col==='#e8913a'?'active':''}" onclick="updColor(${id},'#e8913a',this)" title="Naranja"></span>
+        <span class="cbtn cbtn-o ${col==='#f07020'?'active':''}" onclick="updColor(${id},'#f07020',this)" title="Naranja"></span>
         <span class="cbtn cbtn-y ${col==='#c9a84c'?'active':''}" onclick="updColor(${id},'#c9a84c',this)" title="Amarillo"></span>
         <span class="cbtn cbtn-g ${col==='#4caf7d'?'active':''}" onclick="updColor(${id},'#4caf7d',this)" title="Verde"></span>
         <span class="cbtn cbtn-n ${col==='#3a4a5a'||!col?'active':''}" onclick="updColor(${id},'#3a4a5a',this)" title="Sin color"></span>
@@ -465,8 +465,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').re
 
 // ââ AGREGAR FILA ââââââââââââââââââââââ
 async function agregarFila(){
-  if(!sesion){toast('Sin sesiÃ³n activa',true);return;}
-  const ahora=new Date().toTimeString().slice(0,5);
+  if(!sesion){toast('Sin sesión activa',true);return;}
+  const ahora='';
   const {data,error}=await sb.from('grilla_entradas')
     .insert({sesion_id:sesion.sesion_id,nombre_torneo:'',hora:ahora,buyin:0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:'#3a4a5a'})
     .select('*,salas(nombre)');
@@ -535,7 +535,7 @@ function updSala(id,nm){
   if(s){const e=get(id);if(e){e.sala_id=s.sala_id;e.salas={nombre:s.nombre};}db(id,{sala_id:s.sala_id});}
 }
 function calcRes(e){
-  // Solo calcular resultado si el torneo estÃ¡ finalizado
+  // Solo calcular resultado si el torneo está finalizado
   if(e.estado!=='finalizado') return null;
   return (e.premio||0)-(e.buyin||0)-(e.costo_rebuys||0);
 }
@@ -595,7 +595,7 @@ function lanzarConfetti(btn){
   td.querySelectorAll('.confetti-wrap').forEach(el=>el.remove());
   const wrap=document.createElement('div');
   wrap.className='confetti-wrap';
-  const colors=['#e05656','#4caf7d','#c9a84c','#6b8fa8','#e8913a','#fff'];
+  const colors=['#e05656','#4caf7d','#c9a84c','#6b8fa8','#f07020','#fff'];
   const bits=[
     {cx:'-18px',cy:'-22px',cr:'45deg'},
     {cx:'0px',  cy:'-28px',cr:'-20deg'},
@@ -615,7 +615,7 @@ function lanzarConfetti(btn){
   setTimeout(()=>wrap.remove(), 1200);
 }
 async function eliminar(id){
-  if(!confirm('Â¿Eliminar este torneo?'))return;
+  if(!confirm('¿Eliminar este torneo?'))return;
   await sb.from('grilla_entradas').delete().eq('entrada_id',id);
   filas=filas.filter(f=>f.entrada_id!==id);
   document.querySelector(`tr[data-id="${id}"]`)?.remove();
@@ -629,8 +629,8 @@ function abrirPasar(){
   const color=tot>0?'var(--green)':tot<0?'var(--red)':'var(--muted)';
   document.getElementById('modal-body').innerHTML=
     `Torneos finalizados: <strong>${fin}</strong><br>
-     Resultado del dÃ­a: <strong style="color:${color}">${totStr}</strong><br><br>
-     Esto cierra la sesiÃ³n de hoy. Â¿ConfirmÃ¡s?`;
+     Resultado del día: <strong style="color:${color}">${totStr}</strong><br><br>
+     Esto cierra la sesión de hoy. ¿Confirmás?`;
   document.getElementById('modal-pasar').classList.add('open');
 }
 async function pasarDatos(){
@@ -639,8 +639,8 @@ async function pasarDatos(){
   const tot=filas.reduce((s,f)=>s+(f.resultado||0),0);
   const {error}=await sb.from('sesiones')
     .update({estado:'cerrada',resultado_total:tot}).eq('sesion_id',sesion.sesion_id);
-  if(error){toast('Error al cerrar sesiÃ³n',true);return;}
-  toast('Â¡Datos pasados! SesiÃ³n cerrada â');
+  if(error){toast('Error al cerrar sesión',true);return;}
+  toast('¡Datos pasados! Sesión cerrada â');
   sesion=null;filas=[];
   document.getElementById('tbody').innerHTML='';
   setTimeout(()=>obtenerSesion(),800);
