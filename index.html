@@ -633,10 +633,10 @@ function lanzarConfetti(btn){
   setTimeout(()=>wrap.remove(), 1200);
 }
 async function eliminar(id){
-  if(!confirm('¿Eliminar este torneo?'))return;
   await sb.from('grilla_entradas').delete().eq('entrada_id',id);
   filas=filas.filter(f=>f.entrada_id!==id);
   document.querySelector(`tr[data-id="${id}"]`)?.remove();
+  actualizarTotales();
 }
 
 // ── PASAR DATOS ───────────────────────
