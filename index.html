@@ -46,7 +46,13 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 #app{display:none;min-height:100vh}
 
 /* ── SIDEBAR ── */
-.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sw);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sw);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:width .25s ease}
+.sidebar.collapsed{width:0;overflow:hidden}
+.sidebar-toggle{position:fixed;top:50%;left:var(--sw);transform:translateY(-50%);z-index:101;width:16px;height:48px;background:var(--surface);border:1px solid var(--border);border-left:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:10px;transition:left .25s ease;border-radius:0 4px 4px 0}
+.sidebar-toggle:hover{background:var(--card);color:var(--text)}
+.sidebar.collapsed~.sidebar-toggle,.sidebar.collapsed+.sidebar-toggle{left:0}
+.main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column;transition:margin-left .25s ease}
+.main.expanded{margin-left:0}
 .sb-hdr{padding:22px 16px 16px;border-bottom:1px solid var(--border)}
 .sb-logo{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;letter-spacing:3px}
 .sb-logo span{color:var(--silver)}
@@ -61,7 +67,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png')
 .logout-btn:hover{color:var(--red);background:rgba(224,86,86,.08)}
 
 /* ── MAIN ── */
-.main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
 .topbar{height:48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:50}
 .topbar-t{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
 .content{padding:18px 24px;flex:1;display:flex;gap:20px;align-items:flex-start}
@@ -206,7 +211,8 @@ td.itm-cel{position:relative}
     </div>
   </nav>
 
-  <div class="main">
+  <button class="sidebar-toggle" id="sb-toggle" onclick="toggleSidebar()" title="Mostrar/ocultar panel">◀</button>
+  <div class="main" id="main-content">
     <div class="topbar">
       <span class="topbar-t">Grilla del día</span>
     </div>
@@ -221,6 +227,7 @@ td.itm-cel{position:relative}
       <!-- TOTALES -->
       <div class="totales" id="totales">
         <div class="tot-card"><div class="tot-label">A iniciar</div><div class="tot-val" id="t-iniciar">0</div></div>
+        <div class="tot-card"><div class="tot-label">En curso</div><div class="tot-val" id="t-curso" style="color:#6b8fa8">0</div></div>
         <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
         <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
@@ -344,11 +351,12 @@ async function arrancar(){
   document.getElementById('sbnm').textContent=email;
   await Promise.all([cargarSalas(), obtenerSesion()]);
   cargarPizarra();
+  initSidebar();
 }
 
 // ── SALAS ─────────────────────────────
 async function cargarSalas(){
-  const {data}=await sb.from('salas').select('sala_id,nombre').eq('activa',true).order('nombre');
+  const {data}=await sb.from('salas').select('sala_id,nombre,tope_buyin').eq('activa',true).order('nombre');
   salas=data||[];
   document.getElementById('dl-salas').innerHTML=salas.map(s=>`<option value="${s.nombre}">`).join('');
 }
@@ -418,10 +426,12 @@ function renderizar(){
 }
 function actualizarTotales(){
   const aIniciar=filas.filter(f=>f.estado==='a_iniciar').length;
+  const enCurso=filas.filter(f=>f.estado==='en_curso').length;
   const finalizados=filas.filter(f=>f.estado==='finalizado');
   const itm=filas.filter(f=>f.itm).length;
 
   document.getElementById('t-iniciar').textContent=aIniciar;
+  document.getElementById('t-curso').textContent=enCurso;
   document.getElementById('t-torneos').textContent=finalizados.length;
   document.getElementById('t-itm').textContent=itm;
 
@@ -560,6 +570,26 @@ function calcRes(e){
 function updBuyin(id,v){
   const e=get(id);if(!e)return;
   const bi=parseFloat(v)||0;
+  // Validar tope de buy in
+  if(e.sala_id){
+    const sala=salas.find(s=>s.sala_id===e.sala_id);
+    if(sala?.tope_buyin && bi>0){
+      const tope=sala.tope_buyin;
+      const limite=tope*1.25;
+      const inp=document.querySelector(`tr[data-id="${id}"] input[type=number]`);
+      if(bi>limite){
+        if(inp){inp.style.background='rgba(224,86,86,0.2)';inp.style.borderBottomColor='#e05656';}
+        toast('⛔ Buy in bloqueado: supera el tope de '+tope+' más el 25% permitido', true);
+        if(inp) inp.value=e.buyin||'';
+        return;
+      } else if(bi>tope){
+        if(inp){inp.style.background='rgba(201,168,76,0.15)';inp.style.borderBottomColor='#c9a84c';}
+        toast('⚠️ Buy in supera el tope establecido ('+tope+')', true);
+      } else {
+        if(inp){inp.style.background='';inp.style.borderBottomColor='';}
+      }
+    }
+  }
   const rb=e.rebuys||0;
   const auto=rb>0&&e.costo_rebuys===rb*(e.buyin||0);
   const nc=auto?rb*bi:(e.costo_rebuys||0);
