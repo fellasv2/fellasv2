@@ -133,6 +133,19 @@ tbody td{padding:4px 8px;vertical-align:middle}
 .confirm-btn:hover{opacity:.85}
 
 /* ── TOAST ── */
+/* ── FINALIZAR SESION ── */
+.fin-modal{background:var(--surface);border:1px solid var(--border2);border-top:2px solid var(--green);padding:28px 32px;max-width:460px;width:90vw}
+.fin-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:16px}
+.fin-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.fin-row:last-of-type{border-bottom:none}
+.fin-label{color:var(--muted2)}
+.fin-val{font-weight:500}
+.fin-total{display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.fin-cot{font-size:10px;color:var(--muted);margin:8px 0 16px;letter-spacing:.5px}
+.btn-fin{padding:9px 22px;background:var(--green);color:var(--bg);border:none;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:opacity .2s}
+.btn-fin:hover{opacity:.85}
+.btn-fin:disabled{opacity:.4;cursor:not-allowed}
+
 /* ── CONFETTI ITM ── */
 .confetti-wrap{position:absolute;top:-8px;left:50%;transform:translateX(-50%);pointer-events:none;width:40px;height:30px;overflow:visible}
 .conf-bit{position:absolute;width:5px;height:5px;border-radius:1px;opacity:0;animation:conf-fly 0.8s ease-out forwards}
@@ -222,7 +235,8 @@ td.itm-cel{position:relative}
 
       <!-- TOOLBAR -->
       <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-        <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#9aa5b4;color:#0a0a0a;border:none;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'" onclick="agregarFila()">+ AGREGAR</button>
+        <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#9aa5b4;color:#0a0a0a;border:none;cursor:pointer;transition:opacity .2s;margin-right:8px" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'" onclick="agregarFila()">+ AGREGAR</button>
+        <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4caf7d;color:#0a0a0a;border:none;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'" onclick="abrirFinalizarSesion()">FINALIZAR SESIÓN</button>
       </div>
 
       <!-- TOTALES -->
@@ -289,6 +303,23 @@ td.itm-cel{position:relative}
     <div class="modal-a">
       <button class="cancel-btn" onclick="cerrarModal()">Cancelar</button>
       <button class="confirm-btn" onclick="pasarDatos()">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FINALIZAR SESION -->
+<div class="overlay" id="modal-fin" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(10,10,10,.88);z-index:1000;backdrop-filter:blur(3px)">
+  <div class="fin-modal">
+    <div class="fin-title">Finalizar sesión del día</div>
+    <div id="fin-resumen"></div>
+    <div class="fin-cot" id="fin-cot"></div>
+    <div class="fin-total">
+      <span>Resultado en ARS</span>
+      <span id="fin-total-ars" style="color:var(--green)">—</span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="cancel-btn" onclick="document.getElementById('modal-fin').style.display='none'">Cancelar</button>
+      <button class="btn-fin" id="btn-confirmar-fin" onclick="confirmarFinalizar()">CONFIRMAR Y CERRAR</button>
     </div>
   </div>
 </div>
