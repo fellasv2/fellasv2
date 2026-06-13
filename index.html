@@ -851,21 +851,54 @@ function irA(pagina,btn){
 }
 async function cargarMakeup(){
   const {data}=await sb.from('makeup').select('saldo_ars').eq('jugador_id',user.id).limit(1);
-  const s=data?.[0]?.saldo_ars||0;
+  const s=(data&&data[0]&&data[0].saldo_ars)||0;
   const el=document.getElementById('mu-val');
   if(!el)return;
   el.textContent=(s>=0?'+':'')+Math.round(s).toLocaleString('es-AR');
   el.className='mu-val '+(s>0?'mu-pos':s<0?'mu-neg':'mu-zero');
+  const disp=document.querySelector('#page-makeup .mu-display');
+  if(disp){
+    let st=document.getElementById('mu-status');
+    if(!st){st=document.createElement('div');st.id='mu-status';st.style.cssText='margin-top:12px;font-size:12px;line-height:1.5';disp.appendChild(st);}
+    if(s>0) st.innerHTML='<span style="color:var(--green)">Makeup positivo — podés solicitar un split y cobrar tu parte.</span>';
+    else if(s<0) st.innerHTML='<span style="color:var(--red)">En recuperación — te faltan '+Math.round(-s).toLocaleString('es-AR')+' ARS para volver a cero y poder cobrar.</span>';
+    else st.innerHTML='<span style="color:var(--muted2)">Estás en cero. Lo que ganes desde ahora suma para tu próximo split.</span>';
+  }
+  const {data:ss}=await sb.from('saldos_sala').select('saldo_actual,moneda,salas(nombre)').eq('jugador_id',user.id).order('sala_id');
+  const body=document.querySelector('#page-makeup .page-body');
+  let salasCard=document.getElementById('mu-salas-card');
+  if(body&&!salasCard){
+    salasCard=document.createElement('div');salasCard.className='card';salasCard.id='mu-salas-card';
+    const firstCard=body.querySelector('.card');
+    if(firstCard&&firstCard.nextSibling) body.insertBefore(salasCard,firstCard.nextSibling); else body.appendChild(salasCard);
+  }
+  if(salasCard){
+    if(!ss||!ss.length) salasCard.innerHTML='<div class="card-title">Saldo de fichas por sala</div><div class="empty-pg"><p>Sin saldos cargados todavía.</p></div>';
+    else salasCard.innerHTML='<div class="card-title">Saldo de fichas por sala</div><table class="ht"><thead><tr><th>Sala</th><th>Saldo</th><th>Moneda</th></tr></thead><tbody>'+ss.map(x=>`<tr><td>${(x.salas&&x.salas.nombre)||'—'}</td><td>${Math.round(x.saldo_actual||0).toLocaleString('es-AR')}</td><td>${x.moneda||''}</td></tr>`).join('')+'</tbody></table>';
+  }
   const {data:sp}=await sb.from('splits').select('*').eq('jugador_id',user.id).order('created_at',{ascending:false}).limit(10);
   const cont=document.getElementById('splits-content');
-  if(!sp?.length){cont.innerHTML='<div class="empty-pg"><p>Sin splits registrados.</p></div>';return;}
-  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Makeup antes</th><th>Tu parte</th></tr></thead><tbody>'+sp.map(s=>`<tr><td>${s.fecha}</td><td>${Math.round(s.makeup_antes).toLocaleString('es-AR')}</td><td><span class="badge bp">+${Math.round(s.monto_jugador).toLocaleString('es-AR')}</span></td></tr>`).join('')+'</tbody></table>';
+  if(cont){
+    if(!sp||!sp.length) cont.innerHTML='<div class="empty-pg"><p>Sin splits registrados.</p></div>';
+    else cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Makeup antes</th><th>Tu parte</th></tr></thead><tbody>'+sp.map(x=>`<tr><td>${x.fecha}</td><td>${Math.round(x.makeup_antes||0).toLocaleString('es-AR')}</td><td><span class="badge bp">+${Math.round(x.monto_jugador||0).toLocaleString('es-AR')}</span></td></tr>`).join('')+'</tbody></table>';
+  }
 }
 async function cargarHistorial(){
-  const {data}=await sb.from('sesiones_cerradas').select('*').eq('jugador_id',user.id).order('created_at',{ascending:false}).limit(30);
+  const {data}=await sb.from('sesiones_cerradas').select('*').eq('jugador_id',user.id).order('sc_id',{ascending:false}).limit(60);
   const cont=document.getElementById('hist-content');
-  if(!data?.length){cont.innerHTML='<div class="empty-pg"><p>Sin sesiones cerradas todavia.</p></div>';return;}
-  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneos</th><th>ITM</th><th>Invertido</th><th>Cobrado</th><th>Resultado ARS</th></tr></thead><tbody>'+data.map(s=>{const r=s.resultado_ars||0;return`<tr><td>${s.fecha}</td><td>${s.torneos_jugados||0}</td><td>${s.torneos_itm||0}</td><td>${Math.round(s.total_invertido_ars||0).toLocaleString('es-AR')}</td><td>${Math.round(s.total_cobrado_ars||0).toLocaleString('es-AR')}</td><td><span class="badge ${r>=0?'bp':'bn'}">${r>=0?'+':''}${Math.round(r).toLocaleString('es-AR')}</span></td></tr>`;}).join('')+'</tbody></table>';
+  if(!data||!data.length){cont.innerHTML='<div class="empty-pg"><div class="ico">📅</div><p>Todavía no cerraste ninguna sesión.<br>Cuando finalices una sesión en la Grilla, va a aparecer acá.</p></div>';return;}
+  const fmt=n=>Math.round(n||0).toLocaleString('es-AR');
+  const roi=(res,inv)=> inv>0? Math.round(res/inv*1000)/10 : null;
+  let tT=0,tI=0,tInv=0,tCob=0,tRes=0;
+  const rows=data.map(s=>{
+    const res=s.resultado_ars||0, inv=s.total_invertido_ars||0, cob=s.total_cobrado_ars||0;
+    tT+=s.torneos_jugados||0; tI+=s.torneos_itm||0; tInv+=inv; tCob+=cob; tRes+=res;
+    const r=roi(res,inv);
+    return `<tr><td>${s.fecha}</td><td>${s.torneos_jugados||0}</td><td>${s.torneos_itm||0}</td><td>${fmt(inv)}</td><td>${fmt(cob)}</td><td><span class="badge ${res>=0?'bp':'bn'}">${res>=0?'+':''}${fmt(res)}</span></td><td style="color:${r===null?'var(--muted)':r>=0?'var(--green)':'var(--red)'}">${r===null?'—':(r>=0?'+':'')+r+'%'}</td></tr>`;
+  }).join('');
+  const rT=roi(tRes,tInv);
+  const totRow=`<tr style="border-top:2px solid var(--border2);font-weight:700"><td>TOTAL</td><td>${tT}</td><td>${tI}</td><td>${fmt(tInv)}</td><td>${fmt(tCob)}</td><td style="color:${tRes>=0?'var(--green)':'var(--red)'}">${tRes>=0?'+':''}${fmt(tRes)}</td><td style="color:${rT===null?'var(--muted)':rT>=0?'var(--green)':'var(--red)'}">${rT===null?'—':(rT>=0?'+':'')+rT+'%'}</td></tr>`;
+  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneos</th><th>ITM</th><th>Invertido</th><th>Cobrado</th><th>Resultado ARS</th><th>ROI</th></tr></thead><tbody>'+rows+totRow+'</tbody></table>';
 }
 async function cargarMiSesion(){
   const cont=document.getElementById('sesion-content');
