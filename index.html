@@ -1339,11 +1339,20 @@ async function cargarHistorial(){
   cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneos</th><th>ITM</th><th>Invertido</th><th>Cobrado</th><th>Resultado ARS</th></tr></thead><tbody>'+data.map(s=>{const r=s.resultado_ars||0;return`<tr><td>${s.fecha}</td><td>${s.torneos_jugados||0}</td><td>${s.torneos_itm||0}</td><td>${Math.round(s.total_invertido_ars||0).toLocaleString('es-AR')}</td><td>${Math.round(s.total_cobrado_ars||0).toLocaleString('es-AR')}</td><td><span class="badge ${r>=0?'bp':'bn'}">${r>=0?'+':''}${Math.round(r).toLocaleString('es-AR')}</span></td></tr>`;}).join('')+'</tbody></table>';
 }
 async function cargarMiSesion(){
-  const fin=filas.filter(f=>f.estado==='finalizado');
-  const res=fin.reduce((s,f)=>s+(f.resultado||0),0);
   const cont=document.getElementById('sesion-content');
   if(!cont)return;
-  cont.innerHTML=`<div class="card"><div class="card-title">Sesion actual</div><div style="display:flex;gap:12px;flex-wrap:wrap"><div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val">${filas.length}</div></div><div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val">${fin.length}</div></div><div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val">${filas.filter(f=>f.itm).length}</div></div><div class="tot-card"><div class="tot-label">Resultado (est.)</div><div class="tot-val" style="color:${res>=0?'var(--green)':'var(--red)'}">${res>=0?'+':''}${res.toLocaleString('es-AR')}</div></div></div></div>`;
+  const fmt=n=>Math.round(n||0).toLocaleString('es-AR');
+  const abiertos=filas.length, finAb=filas.filter(f=>f.estado==='finalizado').length, itmAb=filas.filter(f=>f.itm).length;
+  let html=`<div class="card"><div class="card-title">Sesión en curso</div><div style="display:flex;gap:12px;flex-wrap:wrap"><div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val">${abiertos}</div></div><div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val">${finAb}</div></div><div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val">${itmAb}</div></div></div><div style="font-size:10px;color:var(--muted);margin-top:8px">El resultado en pesos se calcula al finalizar la sesión (las monedas se convierten con la cotización del momento).</div></div>`;
+  const {data}=await sb.from('sesiones_cerradas').select('*').eq('jugador_id',user.id).order('sc_id',{ascending:false}).limit(1);
+  const sc=data&&data[0];
+  if(sc){
+    const col=sc.resultado_ars>0?'var(--green)':sc.resultado_ars<0?'var(--red)':'var(--muted)';
+    html+=`<div class="card"><div class="card-title">Última sesión cerrada · ${sc.fecha}</div><div style="display:flex;gap:12px;flex-wrap:wrap"><div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val">${sc.torneos_jugados||0}</div></div><div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val">${sc.torneos_itm||0}</div></div><div class="tot-card"><div class="tot-label">Invertido ARS</div><div class="tot-val" style="font-size:14px">${fmt(sc.total_invertido_ars)}</div></div><div class="tot-card"><div class="tot-label">Cobrado ARS</div><div class="tot-val" style="font-size:14px">${fmt(sc.total_cobrado_ars)}</div></div><div class="tot-card"><div class="tot-label">Resultado ARS</div><div class="tot-val" style="color:${col};font-size:14px">${sc.resultado_ars>=0?'+':''}${fmt(sc.resultado_ars)}</div></div></div>${sc.usdt_ars?`<div style="font-size:10px;color:var(--muted);margin-top:8px">USDT usado: ${fmt(sc.usdt_ars)} ARS</div>`:''}</div>`;
+  }else{
+    html+=`<div class="card"><div class="card-title">Última sesión cerrada</div><div class="empty-pg"><p>Todavía no cerraste ninguna sesión.</p></div></div>`;
+  }
+  cont.innerHTML=html;
 }
 async function cargarFormCotizaciones(){
   const hoy=new Date().toISOString().split('T')[0];
@@ -1366,6 +1375,144 @@ async function guardarCotizaciones(){
   if(error){toast('Error: '+error.message,true);return;}
   toast('Cotizaciones guardadas!');
   cargarFormCotizaciones();
+}
+
+// ── CIERRE DE SESIÓN ──────────────────
+function _grupoMoneda(m){ m=(m||'ARS').toUpperCase(); return (m==='USD'||m==='USDT')?'USDT':m; }
+
+async function traerCotizacionUSDT(){
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
+    const r=await fetch('https://criptoya.com/api/binancep2p/usdt/ars/1',{signal:ctrl.signal});
+    clearTimeout(t);
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    const v=parseFloat(d&&(d.totalBid||d.bid))||0;
+    if(v>0){ try{localStorage.setItem('ultimaUSDT',JSON.stringify({v:v,ts:d.time||Math.floor(Date.now()/1000)}));}catch(e){} return {rate:v,ts:d.time||null,fuente:'criptoya'}; }
+    throw 0;
+  }catch(e){
+    try{const last=JSON.parse(localStorage.getItem('ultimaUSDT')||'null'); if(last&&last.v>0) return {rate:last.v,ts:last.ts,fuente:'ultimo'};}catch(_){}
+    return {rate:null,ts:null,fuente:'falla'};
+  }
+}
+
+function _finCampo(label,id,val,nota,notaCol){
+  return `<div style="margin-bottom:10px">
+    <label style="display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${label}</label>
+    <input id="${id}" type="number" step="any" min="0" value="${val}" oninput="_finPreview()" style="width:150px;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none">
+    <div style="font-size:10px;color:${notaCol||'var(--muted)'};margin-top:3px">${nota}</div>
+  </div>`;
+}
+
+async function abrirFinalizarSesion(){
+  if(!sesion){toast('No hay sesión abierta',true);return;}
+  const fin=filas.filter(f=>f.estado==='finalizado');
+  if(!fin.length){toast('No hay torneos finalizados para cerrar',true);return;}
+  const salaIds=[...new Set(fin.map(f=>f.sala_id).filter(Boolean))];
+  let monedaDe={};
+  if(salaIds.length){ const {data:sd}=await sb.from('salas').select('sala_id,moneda').in('sala_id',salaIds); (sd||[]).forEach(s=>{monedaDe[s.sala_id]=(s.moneda||'ARS').toUpperCase();}); }
+  const grupos=new Set(fin.map(f=>_grupoMoneda(monedaDe[f.sala_id])));
+  const cotRow=(await sb.from('cotizaciones_diarias').select('*').eq('fecha',hoy()).limit(1)).data; const cot=(cotRow&&cotRow[0])||{};
+  let usdt={rate:null,ts:null,fuente:'falla'};
+  if(grupos.has('USDT')) usdt=await traerCotizacionUSDT();
+  window._finCtx={fin:fin,monedaDe:monedaDe};
+  let campos='';
+  if(grupos.has('USDT')){
+    const val=usdt.rate?Math.round(usdt.rate*100)/100:'';
+    const nota = usdt.fuente==='criptoya'? ('Binance P2P venta · '+(usdt.ts?new Date(usdt.ts*1000).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'ahora'))
+               : usdt.fuente==='ultimo'? 'No se pudo conectar — último valor guardado, revisalo'
+               : 'No se pudo obtener — cargá el valor a mano';
+    campos+=_finCampo('USDT / USD → ARS','fin-usdt',val,nota, usdt.fuente==='criptoya'?'var(--muted)':'var(--red)');
+  }
+  if(grupos.has('BRL')) campos+=_finCampo('BRL → ARS','fin-brl',cot.brl_ars||'', cot.brl_ars?'Cotización del día':'Sin cargar — completá a mano', cot.brl_ars?'var(--muted)':'var(--red)');
+  if(grupos.has('MXN')) campos+=_finCampo('MXN → ARS','fin-mxn',cot.mxn_ars||'', cot.mxn_ars?'Cotización del día':'Sin cargar — completá a mano', cot.mxn_ars?'var(--muted)':'var(--red)');
+  const itm=fin.filter(f=>f.itm).length;
+  const ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-fin';
+  ov.innerHTML=`<div class="modal" style="max-width:440px;border-top-color:var(--silver)">
+    <div class="modal-t">Finalizar sesión del día</div>
+    <div class="modal-b" style="margin-bottom:14px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val">${fin.length}</div></div>
+        <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val">${itm}</div></div>
+      </div>
+      ${campos?`<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Cotizaciones del momento</div>${campos}`:'<div style="font-size:11px;color:var(--muted)">Todo en pesos, no hace falta cotización.</div>'}
+      <div id="fin-preview" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border2)"></div>
+      <div id="fin-err" style="color:var(--red);font-size:11px;margin-top:8px;display:none"></div>
+    </div>
+    <div class="modal-a">
+      <button class="cancel-btn" onclick="cerrarFinalizar()">Cancelar</button>
+      <button id="fin-ok" class="lbtn" style="width:auto;margin:0;padding:9px 18px" onclick="confirmarFinalizar()">Confirmar cierre</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  _finPreview();
+}
+
+function _finRates(){
+  const g=id=>{const el=document.getElementById(id);return el?parseFloat(el.value):NaN;};
+  return {USDT:g('fin-usdt'),BRL:g('fin-brl'),MXN:g('fin-mxn'),ARS:1};
+}
+
+function _finCalc(){
+  const ctx=window._finCtx; if(!ctx) return null;
+  const rates=_finRates();
+  let resultado=0,invertido=0,cobrado=0; const falta=new Set(); const salaNet={};
+  ctx.fin.forEach(e=>{
+    const g=_grupoMoneda(ctx.monedaDe[e.sala_id]);
+    const rate = g==='ARS'?1:rates[g];
+    const res=(e.resultado||0), inv=(e.buyin||0)+(e.costo_rebuys||0), cob=(e.premio||0);
+    if(rate>0){ resultado+=res*rate; invertido+=inv*rate; cobrado+=cob*rate; } else { falta.add(g); }
+    if(e.sala_id) salaNet[e.sala_id]=(salaNet[e.sala_id]||0)+res;
+  });
+  return {resultado,invertido,cobrado,falta:[...falta],salaNet,rates};
+}
+
+function _finPreview(){
+  const c=_finCalc(); if(!c) return;
+  const prev=document.getElementById('fin-preview'), err=document.getElementById('fin-err'), ok=document.getElementById('fin-ok');
+  const fmt=n=>Math.round(n).toLocaleString('es-AR');
+  const col=c.resultado>0?'var(--green)':c.resultado<0?'var(--red)':'var(--muted)';
+  if(prev) prev.innerHTML=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:4px"><span>Invertido</span><span>${fmt(c.invertido)} ARS</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:6px"><span>Cobrado</span><span>${fmt(c.cobrado)} ARS</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700"><span>Resultado</span><span style="color:${col}">${c.resultado>=0?'+':''}${fmt(c.resultado)} ARS</span></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Se sumará a tu makeup.</div>`;
+  const faltan=c.falta.length>0;
+  if(err){ err.style.display=faltan?'block':'none'; if(faltan) err.textContent='Falta la cotización de: '+c.falta.join(', ')+'. Cargala para poder cerrar.'; }
+  if(ok){ ok.disabled=faltan; ok.style.opacity=faltan?'.4':'1'; ok.style.cursor=faltan?'not-allowed':'pointer'; }
+}
+
+function cerrarFinalizar(){ const ov=document.getElementById('modal-fin'); if(ov) ov.remove(); window._finCtx=null; }
+
+async function confirmarFinalizar(){
+  const ctx=window._finCtx; if(!ctx||!sesion) return;
+  const c=_finCalc(); if(!c||c.falta.length){ _finPreview(); return; }
+  const ok=document.getElementById('fin-ok'); if(ok){ok.disabled=true;ok.textContent='Cerrando...';}
+  const fecha=hoy(), rates=c.rates;
+  const torneos=ctx.fin.length, itm=ctx.fin.filter(f=>f.itm).length;
+  const {error:e1}=await sb.from('sesiones_cerradas').insert({
+    jugador_id:user.id, sesion_id:sesion.sesion_id, fecha:fecha,
+    resultado_ars:Math.round(c.resultado),
+    usdt_ars:rates.USDT>0?rates.USDT:0, brl_ars:rates.BRL>0?rates.BRL:0, mxn_ars:rates.MXN>0?rates.MXN:0,
+    torneos_jugados:torneos, torneos_itm:itm,
+    total_invertido_ars:Math.round(c.invertido), total_cobrado_ars:Math.round(c.cobrado)
+  });
+  if(e1){ toast('Error al guardar la sesión: '+e1.message,true); if(ok){ok.disabled=false;ok.textContent='Confirmar cierre';} return; }
+  const {data:mk}=await sb.from('makeup').select('saldo_ars').eq('jugador_id',user.id).limit(1);
+  const saldoPrev=(mk&&mk[0]&&mk[0].saldo_ars)||0;
+  const {error:e2}=await sb.from('makeup').upsert({jugador_id:user.id, saldo_ars:saldoPrev+Math.round(c.resultado), updated_at:new Date().toISOString()},{onConflict:'jugador_id'});
+  if(e2) toast('Aviso: no se pudo actualizar el makeup ('+e2.message+')',true);
+  for(const sidStr of Object.keys(c.salaNet)){
+    const sid=parseInt(sidStr); const net=c.salaNet[sidStr]; if(!sid) continue;
+    const {data:ss}=await sb.from('saldos_sala').select('saldo_actual').eq('jugador_id',user.id).eq('sala_id',sid).limit(1);
+    const prev=(ss&&ss[0]&&ss[0].saldo_actual)||0;
+    await sb.from('saldos_sala').upsert({jugador_id:user.id, sala_id:sid, saldo_actual:prev+net, moneda:(ctx.monedaDe[sid]||'ARS'), updated_at:new Date().toISOString()},{onConflict:'jugador_id,sala_id'});
+  }
+  await sb.from('sesiones').update({estado:'cerrada',resultado_total:Math.round(c.resultado)}).eq('sesion_id',sesion.sesion_id);
+  cerrarFinalizar();
+  toast('¡Sesión cerrada! Resultado: '+(c.resultado>=0?'+':'')+Math.round(c.resultado).toLocaleString('es-AR')+' ARS ✓');
+  sesion=null; filas=[]; const tb=document.getElementById('tbody'); if(tb) tb.innerHTML='';
+  actualizarTotales();
+  setTimeout(()=>obtenerSesion(),800);
 }
 
 init();
