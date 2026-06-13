@@ -272,86 +272,8 @@ td.itm-cel{position:relative}
     <div class="topbar">
       <span class="topbar-t">Grilla del día</span>
     </div>
-    <div class="content">
-      <div class="content-main">
 
-      <!-- TOOLBAR -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-        <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#9aa5b4;color:#0a0a0a;border:none;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'" onclick="agregarFila()">+ AGREGAR</button>
-      </div>
-
-      <!-- TOTALES -->
-      <div class="totales" id="totales">
-        <div class="tot-card"><div class="tot-label">A iniciar</div><div class="tot-val" id="t-iniciar">0</div></div>
-        <div class="tot-card"><div class="tot-label">Finalizados</div><div class="tot-val" id="t-torneos">0</div></div>
-        <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val" id="t-itm">0</div></div>
-        <div class="tot-card"><div class="tot-label">Tiempo sesión</div><div class="tot-val" id="t-tiempo" style="font-size:14px">—</div></div>
-      </div>
-
-      <div class="twrap">
-        <table>
-          <colgroup>
-            <col style="width:24px"><col style="width:72px"><col class="ch"><col class="ce"><col class="cn"><col class="cs">
-            <col class="cb"><col class="cr"><col class="crb">
-            <col class="ci"><col class="cp"><col class="crs"><col class="cd">
-          </colgroup>
-          <thead>
-            <tr>
-              <th></th><th></th><th>Hora</th><th>Estado</th><th>Nombre</th><th>Sala</th>
-              <th class="r">Buy In</th><th class="r">Rebuy</th><th class="r">Costo RB</th>
-              <th class="c">ITM</th><th class="r">Premio</th><th class="r">Resultado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-
-      </div><!-- /content-main -->
-
-      <!-- PANEL DERECHO -->
-      <div class="content-side">
-        <!-- LEMA -->
-        <div class="lema-card">
-          <strong>Valores</strong>
-          <span class="lema-word">Sinceridad</span>
-          <span class="lema-word">Capacidad</span>
-          <span class="lema-word">Credibilidad</span>
-          <span class="lema-word">Compromiso</span>
-          <span class="lema-word">Intuición</span>
-        </div>
-        <!-- PIZARRA -->
-        <div class="pizarra-card">
-          <span class="pizarra-label">Pizarra</span>
-          <textarea class="pizarra" id="pizarra" onblur="guardarPizarra(this.value)">★ Seleccionar mesas antes de registrarse en torneos caros.
-
-★ Max 8 mesas
-
-★ Al seleccionar mesas para registrarse, en caso de bug del HUD reiniciar al descanso</textarea>
-        </div>
-      </div><!-- /content-side -->
-
-    </div>
-  </div>
-</div>
-
-<!-- MODAL PASAR DATOS -->
-<div class="overlay" id="modal-pasar">
-  <div class="modal">
-    <div class="modal-t">Cerrar sesión del día</div>
-    <div class="modal-b" id="modal-body">Resumen de la jornada.</div>
-    <div class="modal-a">
-      <button class="cancel-btn" onclick="cerrarModal()">Cancelar</button>
-      <button class="confirm-btn" onclick="pasarDatos()">CONFIRMAR</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-<datalist id="dl-salas"></datalist>
-
-</body>
-</html>      <div class="content" style="padding:0;align-items:stretch;overflow:hidden">
+<div class="content" style="padding:0;align-items:stretch;overflow:hidden">
 
         <!-- PAGINA: GRILLA -->
         <div class="page active" id="page-grilla" style="flex-direction:row">
@@ -502,8 +424,8 @@ td.itm-cel{position:relative}
         </div>
 
       </div>
-  </div>
-</div>
+  </div><!-- /content -->
+</div><!-- /app -->
 
 <!-- MODAL PASAR DATOS -->
 <div class="overlay" id="modal-pasar">
