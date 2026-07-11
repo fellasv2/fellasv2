@@ -249,6 +249,9 @@ td.itm-cel{position:relative}
       <button class="nav-item" onclick="irA('makeup',this)">
         <span style="width:16px;text-align:center">💰</span> Mi Makeup
       </button>
+      <button class="nav-item" onclick="irA('plantillas',this)">
+        <span style="width:16px;text-align:center">🗂️</span> Mis grillas
+      </button>
       <div class="nav-section">Administracion</div>
       <button class="nav-item" onclick="irA('admin-jugadores',this)">
         <span style="width:16px;text-align:center">👥</span> Jugadores
@@ -279,6 +282,7 @@ td.itm-cel{position:relative}
         <div class="page active" id="page-grilla" style="flex-direction:row">
           <div class="content-main" style="padding:18px 24px;display:flex;flex-direction:column">
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+              <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4a5a6a;color:#e8eef5;border:none;cursor:pointer" onclick="cargarPlantillaHoy()">&#8635; Cargar plantilla</button>
               <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#9aa5b4;color:#0a0a0a;border:none;cursor:pointer" onclick="agregarFila()">+ AGREGAR</button>
               <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4caf7d;color:#0a0a0a;border:none;cursor:pointer" onclick="abrirFinalizarSesion()">FINALIZAR SESION</button>
             </div>
@@ -368,6 +372,27 @@ td.itm-cel{position:relative}
             <div class="card">
               <div class="card-title">Historial de splits</div>
               <div id="splits-content"><div class="empty-pg"><p>Sin splits registrados.</p></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGINA: MIS GRILLAS -->
+        <div class="page" id="page-plantillas">
+          <div class="page-header">
+            <div class="page-title">Mis grillas</div>
+            <div class="page-subtitle">Una plantilla por dia de la semana. Editala cuando quieras y cargala en la Grilla del dia.</div>
+          </div>
+          <div class="page-body">
+            <div id="pl-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <div class="card-title" id="pl-titulo" style="margin:0">Plantilla</div>
+                <div style="display:flex;gap:8px">
+                  <button class="lbtn" style="width:auto;margin:0;padding:7px 14px;font-size:11px" onclick="plGuardarHoy()">&#8595; Traer la grilla de hoy</button>
+                  <button class="lbtn" style="width:auto;margin:0;padding:7px 14px;font-size:11px;background:#4a5a6a;color:#e8eef5" onclick="plAgregar()">+ Torneo</button>
+                </div>
+              </div>
+              <div id="pl-content"></div>
             </div>
           </div>
         </div>
@@ -505,6 +530,85 @@ async function cargarSalas(){
   const {data}=await sb.from('salas').select('sala_id,nombre').eq('activa',true).order('nombre');
   salas=data||[];
   document.getElementById('dl-salas').innerHTML=salas.map(s=>`<option value="${s.nombre}">`).join('');
+}
+
+// ── MIS GRILLAS (PLANTILLAS) ──────────
+const DIAS_SEM=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+
+async function cargarPlantillas(){
+  if(window._plDia==null||window._plDia===undefined) window._plDia=new Date(hoy()+'T12:00:00').getDay();
+  await _plCargarDia(window._plDia);
+}
+
+function _plTabs(){
+  const cont=document.getElementById('pl-tabs'); if(!cont) return;
+  cont.innerHTML=[1,2,3,4,5,6,0].map(d=>`<button onclick="_plCargarDia(${d})" style="padding:7px 12px;font-size:11px;font-family:'DM Mono',monospace;border:1px solid var(--border2);cursor:pointer;background:${d===window._plDia?'var(--accent)':'transparent'};color:${d===window._plDia?'#0a0a0a':'var(--muted2)'}">${DIAS_SEM[d].slice(0,3)}</button>`).join('');
+}
+
+function _plFila(r){
+  const salaOpts=['<option value="">- sala -</option>'].concat(salas.map(s=>`<option value="${s.sala_id}" ${r.sala_id==s.sala_id?'selected':''}>${esc(s.nombre)}</option>`)).join('');
+  return `<tr>
+    <td><input class="cel" type="text" value="${esc(r.nombre_torneo||'')}" placeholder="Nombre" onblur="plUpd(${r.plantilla_id},'nombre_torneo',this.value)"></td>
+    <td><select class="cel" onchange="plUpd(${r.plantilla_id},'sala_id',this.value)">${salaOpts}</select></td>
+    <td><input class="cel" type="time" value="${r.hora||''}" onchange="plUpd(${r.plantilla_id},'hora',this.value)"></td>
+    <td class="r"><input class="cel r" type="number" value="${r.buyin||''}" placeholder="0" min="0" step="any" onchange="plUpd(${r.plantilla_id},'buyin',this.value)"></td>
+    <td class="r"><button onclick="plDel(${r.plantilla_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
+  </tr>`;
+}
+
+async function _plCargarDia(dia){
+  window._plDia=dia; _plTabs();
+  const tit=document.getElementById('pl-titulo'); if(tit) tit.textContent='Plantilla · '+DIAS_SEM[dia];
+  const {data}=await sb.from('plantillas_grilla').select('*').eq('jugador_id',user.id).eq('dia_semana',dia).order('orden').order('hora');
+  const cont=document.getElementById('pl-content'); if(!cont) return;
+  if(!data||!data.length){ cont.innerHTML='<div class="empty-pg"><p>Sin torneos en esta plantilla.<br>Usa "Traer la grilla de hoy" para copiar tu grilla actual, o "+ Torneo".</p></div>'; return; }
+  cont.innerHTML='<table class="ht"><thead><tr><th>Torneo</th><th>Sala</th><th>Hora</th><th>Buy-in</th><th></th></tr></thead><tbody>'+data.map(_plFila).join('')+'</tbody></table>';
+}
+
+async function plAgregar(){
+  const dia=window._plDia;
+  const {error}=await sb.from('plantillas_grilla').insert({jugador_id:user.id,dia_semana:dia,nombre_torneo:'',buyin:0,orden:999});
+  if(error){toast('Error: '+error.message,true);return;}
+  _plCargarDia(dia);
+}
+
+async function plDel(id){
+  await sb.from('plantillas_grilla').delete().eq('plantilla_id',id);
+  _plCargarDia(window._plDia);
+}
+
+async function plUpd(id,campo,val){
+  let v=val;
+  if(campo==='buyin') v=parseFloat(val)||0;
+  else if(campo==='sala_id') v=val?parseInt(val):null;
+  else if(campo==='hora') v=val||null;
+  await sb.from('plantillas_grilla').update({[campo]:v}).eq('plantilla_id',id);
+}
+
+async function plGuardarHoy(){
+  const dia=window._plDia;
+  if(!filas.length){ toast('Tu grilla de hoy esta vacia',true); return; }
+  if(!confirm('Esto reemplaza la plantilla del '+DIAS_SEM[dia]+' con los '+filas.length+' torneos de tu grilla de hoy. Seguir?')) return;
+  await sb.from('plantillas_grilla').delete().eq('jugador_id',user.id).eq('dia_semana',dia);
+  const nuevos=filas.map((f,i)=>({jugador_id:user.id,dia_semana:dia,nombre_torneo:f.nombre_torneo||'',sala_id:f.sala_id||null,hora:f.hora||null,buyin:f.buyin||0,orden:i}));
+  const {error}=await sb.from('plantillas_grilla').insert(nuevos);
+  if(error){toast('Error al guardar: '+error.message,true);return;}
+  toast('Plantilla del '+DIAS_SEM[dia]+' guardada ('+nuevos.length+' torneos) ✓');
+  _plCargarDia(dia);
+}
+
+async function cargarPlantillaHoy(){
+  if(!sesion){toast('No hay sesion abierta',true);return;}
+  const dia=new Date(hoy()+'T12:00:00').getDay();
+  const {data:pl}=await sb.from('plantillas_grilla').select('*').eq('jugador_id',user.id).eq('dia_semana',dia).order('orden').order('hora');
+  if(!pl||!pl.length){ toast('No tenes plantilla guardada para el '+DIAS_SEM[dia],true); return; }
+  if(filas.length && !confirm('Esto reemplaza tu grilla de hoy ('+filas.length+' torneos) con la plantilla del '+DIAS_SEM[dia]+' ('+pl.length+' torneos). Seguir?')) return;
+  await sb.from('grilla_entradas').delete().eq('sesion_id',sesion.sesion_id);
+  const nuevos=pl.map(p=>({sesion_id:sesion.sesion_id,nombre_torneo:p.nombre_torneo||'',sala_id:p.sala_id||null,hora:p.hora||null,buyin:p.buyin||0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:'#3a4a5a'}));
+  const {error}=await sb.from('grilla_entradas').insert(nuevos);
+  if(error){toast('Error al cargar: '+error.message,true);return;}
+  toast('Cargue la plantilla del '+DIAS_SEM[dia]+' ('+nuevos.length+' torneos) ✓');
+  await obtenerSesion();
 }
 
 // ── SESIÓN ────────────────────────────
@@ -840,13 +944,14 @@ function irA(pagina,btn){
   const page=document.getElementById('page-'+pagina);
   if(page)page.classList.add('active');
   if(btn)btn.classList.add('active');
-  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones'};
+  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones','plantillas':'Mis grillas'};
   const topbar=document.querySelector('.topbar-t');
   if(topbar)topbar.textContent=titulos[pagina]||pagina;
   if(pagina==='makeup')cargarMakeup();
   if(pagina==='historial')cargarHistorial();
   if(pagina==='sesion')cargarMiSesion();
   if(pagina==='admin-cotizaciones')cargarFormCotizaciones();
+  if(pagina==='plantillas')cargarPlantillas();
   localStorage.setItem('pg',pagina);
 }
 async function cargarMakeup(){
