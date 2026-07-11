@@ -958,14 +958,6 @@ async function traerCotizacionUSDT(){
   }
 }
 
-function _finCampo(label,id,val,nota,notaCol){
-  return `<div style="margin-bottom:10px">
-    <label style="display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${label}</label>
-    <input id="${id}" type="number" step="any" min="0" value="${val}" oninput="_finPreview()" style="width:150px;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none">
-    <div style="font-size:10px;color:${notaCol||'var(--muted)'};margin-top:3px">${nota}</div>
-  </div>`;
-}
-
 async function abrirFinalizarSesion(){
   if(!sesion){toast('No hay sesión abierta',true);return;}
   const fin=filas.filter(f=>f.estado==='finalizado');
@@ -974,53 +966,46 @@ async function abrirFinalizarSesion(){
   let monedaDe={};
   if(salaIds.length){ const {data:sd}=await sb.from('salas').select('sala_id,moneda').in('sala_id',salaIds); (sd||[]).forEach(s=>{monedaDe[s.sala_id]=(s.moneda||'ARS').toUpperCase();}); }
   const grupos=new Set(fin.map(f=>_grupoMoneda(monedaDe[f.sala_id])));
-  const cotRow=(await sb.from('cotizaciones_diarias').select('*').eq('fecha',hoy()).limit(1)).data; const cot=(cotRow&&cotRow[0])||{};
-  let usdt={rate:null,ts:null,fuente:'falla'};
-  if(grupos.has('USDT')) usdt=await traerCotizacionUSDT();
-  window._finCtx={fin:fin,monedaDe:monedaDe};
-  let campos='';
-  if(grupos.has('USDT')){
-    const val=usdt.rate?Math.round(usdt.rate*100)/100:'';
-    const nota = usdt.fuente==='criptoya'? ('Binance P2P venta · '+(usdt.ts?new Date(usdt.ts*1000).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'ahora'))
-               : usdt.fuente==='ultimo'? 'No se pudo conectar — último valor guardado, revisalo'
-               : 'No se pudo obtener — cargá el valor a mano';
-    campos+=_finCampo('USDT / USD → ARS','fin-usdt',val,nota, usdt.fuente==='criptoya'?'var(--muted)':'var(--red)');
-  }
-  if(grupos.has('BRL')) campos+=_finCampo('BRL → ARS','fin-brl',cot.brl_ars||'', cot.brl_ars?'Cotización del día':'Sin cargar — completá a mano', cot.brl_ars?'var(--muted)':'var(--red)');
-  if(grupos.has('MXN')) campos+=_finCampo('MXN → ARS','fin-mxn',cot.mxn_ars||'', cot.mxn_ars?'Cotización del día':'Sin cargar — completá a mano', cot.mxn_ars?'var(--muted)':'var(--red)');
+  // Cotización MÁS RECIENTE cargada por el admin (no por fecha exacta)
+  const cotRow=(await sb.from('cotizaciones_diarias').select('*').order('fecha',{ascending:false}).limit(1)).data;
+  const cot=(cotRow&&cotRow[0])||{};
+  // Tasas automáticas: el jugador no elige nada
+  const rates={ARS:1,USDT:0,BRL:0,MXN:0};
+  if(grupos.has('USDT')){ const u=await traerCotizacionUSDT(); rates.USDT=u.rate||cot.usdt_ars||0; }
+  if(grupos.has('BRL')) rates.BRL=cot.brl_ars||0;
+  if(grupos.has('MXN')) rates.MXN=cot.mxn_ars||0;
+  const calc=_finCalc(fin,monedaDe,rates);
+  window._finCtx={fin:fin,monedaDe:monedaDe,rates:rates,calc:calc};
   const itm=fin.filter(f=>f.itm).length;
+  const fmt=n=>Math.round(n).toLocaleString('es-AR');
+  const col=calc.resultado>0?'var(--green)':calc.resultado<0?'var(--red)':'var(--muted)';
+  const faltan=calc.falta.length>0;
   const ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-fin';
-  ov.innerHTML=`<div class="modal" style="max-width:440px;border-top-color:var(--silver)">
+  ov.innerHTML=`<div class="modal" style="max-width:420px;border-top-color:var(--silver)">
     <div class="modal-t">Finalizar sesión del día</div>
     <div class="modal-b" style="margin-bottom:14px">
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <div class="tot-card"><div class="tot-label">Torneos</div><div class="tot-val">${fin.length}</div></div>
         <div class="tot-card"><div class="tot-label">ITM</div><div class="tot-val">${itm}</div></div>
       </div>
-      ${campos?`<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Cotizaciones del momento</div>${campos}`:'<div style="font-size:11px;color:var(--muted)">Todo en pesos, no hace falta cotización.</div>'}
-      <div id="fin-preview" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border2)"></div>
-      <div id="fin-err" style="color:var(--red);font-size:11px;margin-top:8px;display:none"></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:4px"><span>Invertido</span><span>${fmt(calc.invertido)} ARS</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:8px"><span>Cobrado</span><span>${fmt(calc.cobrado)} ARS</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding-top:8px;border-top:1px solid var(--border2)"><span>Resultado</span><span style="color:${col}">${calc.resultado>=0?'+':''}${fmt(calc.resultado)} ARS</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">Se traslada a tu makeup y al historial automáticamente.</div>
+      ${faltan?`<div style="color:var(--red);font-size:11px;margin-top:10px">Falta que el administrador cargue la cotización de: ${calc.falta.join(', ')}. No se puede cerrar hasta que esté cargada.</div>`:''}
     </div>
     <div class="modal-a">
       <button class="cancel-btn" onclick="cerrarFinalizar()">Cancelar</button>
-      <button id="fin-ok" class="lbtn" style="width:auto;margin:0;padding:9px 18px" onclick="confirmarFinalizar()">Confirmar cierre</button>
+      <button id="fin-ok" class="lbtn" style="width:auto;margin:0;padding:9px 18px${faltan?';opacity:.4;cursor:not-allowed':''}" ${faltan?'disabled':''} onclick="confirmarFinalizar()">Confirmar cierre</button>
     </div>
   </div>`;
   document.body.appendChild(ov);
-  _finPreview();
 }
 
-function _finRates(){
-  const g=id=>{const el=document.getElementById(id);return el?parseFloat(el.value):NaN;};
-  return {USDT:g('fin-usdt'),BRL:g('fin-brl'),MXN:g('fin-mxn'),ARS:1};
-}
-
-function _finCalc(){
-  const ctx=window._finCtx; if(!ctx) return null;
-  const rates=_finRates();
+function _finCalc(fin,monedaDe,rates){
   let resultado=0,invertido=0,cobrado=0; const falta=new Set(); const salaNet={};
-  ctx.fin.forEach(e=>{
-    const g=_grupoMoneda(ctx.monedaDe[e.sala_id]);
+  fin.forEach(e=>{
+    const g=_grupoMoneda(monedaDe[e.sala_id]);
     const rate = g==='ARS'?1:rates[g];
     const res=(e.resultado||0), inv=(e.buyin||0)+(e.costo_rebuys||0), cob=(e.premio||0);
     if(rate>0){ resultado+=res*rate; invertido+=inv*rate; cobrado+=cob*rate; } else { falta.add(g); }
@@ -1029,25 +1014,11 @@ function _finCalc(){
   return {resultado,invertido,cobrado,falta:[...falta],salaNet,rates};
 }
 
-function _finPreview(){
-  const c=_finCalc(); if(!c) return;
-  const prev=document.getElementById('fin-preview'), err=document.getElementById('fin-err'), ok=document.getElementById('fin-ok');
-  const fmt=n=>Math.round(n).toLocaleString('es-AR');
-  const col=c.resultado>0?'var(--green)':c.resultado<0?'var(--red)':'var(--muted)';
-  if(prev) prev.innerHTML=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:4px"><span>Invertido</span><span>${fmt(c.invertido)} ARS</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:6px"><span>Cobrado</span><span>${fmt(c.cobrado)} ARS</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700"><span>Resultado</span><span style="color:${col}">${c.resultado>=0?'+':''}${fmt(c.resultado)} ARS</span></div>
-    <div style="font-size:10px;color:var(--muted);margin-top:6px">Se sumará a tu makeup.</div>`;
-  const faltan=c.falta.length>0;
-  if(err){ err.style.display=faltan?'block':'none'; if(faltan) err.textContent='Falta la cotización de: '+c.falta.join(', ')+'. Cargala para poder cerrar.'; }
-  if(ok){ ok.disabled=faltan; ok.style.opacity=faltan?'.4':'1'; ok.style.cursor=faltan?'not-allowed':'pointer'; }
-}
-
 function cerrarFinalizar(){ const ov=document.getElementById('modal-fin'); if(ov) ov.remove(); window._finCtx=null; }
 
 async function confirmarFinalizar(){
   const ctx=window._finCtx; if(!ctx||!sesion) return;
-  const c=_finCalc(); if(!c||c.falta.length){ _finPreview(); return; }
+  const c=ctx.calc; if(!c||c.falta.length) return;
   const ok=document.getElementById('fin-ok'); if(ok){ok.disabled=true;ok.textContent='Cerrando...';}
   const fecha=hoy(), rates=c.rates;
   const torneos=ctx.fin.length, itm=ctx.fin.filter(f=>f.itm).length;
