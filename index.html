@@ -856,14 +856,6 @@ async function cargarMakeup(){
   if(!el)return;
   el.textContent=(s>=0?'+':'')+Math.round(s).toLocaleString('es-AR');
   el.className='mu-val '+(s>0?'mu-pos':s<0?'mu-neg':'mu-zero');
-  const disp=document.querySelector('#page-makeup .mu-display');
-  if(disp){
-    let st=document.getElementById('mu-status');
-    if(!st){st=document.createElement('div');st.id='mu-status';st.style.cssText='margin-top:12px;font-size:12px;line-height:1.5';disp.appendChild(st);}
-    if(s>0) st.innerHTML='<span style="color:var(--green)">Makeup positivo — podés solicitar un split y cobrar tu parte.</span>';
-    else if(s<0) st.innerHTML='<span style="color:var(--red)">En recuperación — te faltan '+Math.round(-s).toLocaleString('es-AR')+' ARS para volver a cero y poder cobrar.</span>';
-    else st.innerHTML='<span style="color:var(--muted2)">Estás en cero. Lo que ganes desde ahora suma para tu próximo split.</span>';
-  }
   const {data:ss}=await sb.from('saldos_sala').select('saldo_actual,moneda,salas(nombre)').eq('jugador_id',user.id).order('sala_id');
   const body=document.querySelector('#page-makeup .page-body');
   let salasCard=document.getElementById('mu-salas-card');
