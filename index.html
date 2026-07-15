@@ -560,29 +560,34 @@ async function cargarVivo(){
   const {data}=await sb.from('torneos_vivo').select('*').eq('jugador_id',user.id).order('fecha',{ascending:false}).order('vivo_id',{ascending:false});
   const cont=document.getElementById('vivo-content'); if(!cont) return;
   if(!data||!data.length){ cont.innerHTML='<div class="empty-pg"><p>Sin torneos en vivo cargados.<br>Usa "+ Torneo" para agregar el primero.</p></div>'; return; }
-  let tB=0,tP=0,tR=0;
+  let tB=0,tP=0,tR=0,tI=0;
   const rows=data.map(v=>{
-    tB+=v.buyin||0; tP+=v.premio||0; tR+=v.resultado||0;
+    const inv=(v.buyin||0)+(v.costo_reentry||0);
+    tB+=inv; tP+=v.premio||0; tR+=v.resultado||0; if(v.itm) tI++;
     const col=(v.resultado||0)>0?'var(--green)':(v.resultado||0)<0?'var(--red)':'var(--muted)';
     return `<tr>
-      <td style="width:120px"><input class="cel" type="date" value="${v.fecha||''}" onchange="vivoUpd(${v.vivo_id},'fecha',this.value)"></td>
+      <td style="width:118px"><input class="cel" type="date" value="${v.fecha||''}" onchange="vivoUpd(${v.vivo_id},'fecha',this.value)"></td>
       <td><input class="cel" type="text" value="${esc(v.torneo||'')}" placeholder="Nombre" onblur="vivoUpd(${v.vivo_id},'torneo',this.value)"></td>
-      <td style="width:110px"><input class="cel" type="text" value="${esc(v.ciudad||'')}" placeholder="Ciudad" onblur="vivoUpd(${v.vivo_id},'ciudad',this.value)"></td>
-      <td class="r" style="width:110px"><input class="cel r" type="number" value="${v.buyin||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'buyin',this.value)" onclick="this.select()"></td>
-      <td class="r" style="width:110px"><input class="cel r" type="number" value="${v.premio||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'premio',this.value)" onclick="this.select()"></td>
-      <td class="r" style="width:110px;color:${col}">${(v.resultado||0)>=0?'+':''}${_vivoFmt(v.resultado)}</td>
-      <td class="r" style="width:30px"><button onclick="vivoDel(${v.vivo_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
+      <td style="width:100px"><input class="cel" type="text" value="${esc(v.ciudad||'')}" placeholder="Ciudad" onblur="vivoUpd(${v.vivo_id},'ciudad',this.value)"></td>
+      <td class="r" style="width:100px"><input class="cel r" type="number" value="${v.buyin||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'buyin',this.value)" onclick="this.select()"></td>
+      <td class="r" style="width:62px"><input class="cel r" type="number" value="${v.reentry||''}" placeholder="0" min="0" step="1" onchange="vivoUpd(${v.vivo_id},'reentry',this.value)" onclick="this.select()"></td>
+      <td class="r" style="width:100px"><input class="cel r" type="number" value="${v.costo_reentry||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'costo_reentry',this.value)" onclick="this.select()"></td>
+      <td style="width:48px"><button class="itm-btn ${v.itm?'active':''}" onclick="vivoUpd(${v.vivo_id},'itm',${!v.itm})">${v.itm?'SI':'NO'}</button></td>
+      <td class="r" style="width:100px"><input class="cel r" type="number" value="${v.premio||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'premio',this.value)" onclick="this.select()"></td>
+      <td class="r" style="width:104px;color:${col}">${(v.resultado||0)>=0?'+':''}${_vivoFmt(v.resultado)}</td>
+      <td class="r" style="width:26px"><button onclick="vivoDel(${v.vivo_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
     </tr>`;
   }).join('');
   const tot=`<tr style="border-top:2px solid var(--border2);font-weight:600">
-    <td colspan="3">TOTAL</td>
-    <td class="r">${_vivoFmt(tB)}</td><td class="r">${_vivoFmt(tP)}</td>
+    <td colspan="3">TOTAL</td><td class="r">${_vivoFmt(tB)}</td><td></td><td></td>
+    <td>${tI}</td><td class="r">${_vivoFmt(tP)}</td>
     <td class="r" style="color:${tR>=0?'var(--green)':'var(--red)'}">${tR>=0?'+':''}${_vivoFmt(tR)}</td><td></td></tr>`;
-  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneo</th><th>Ciudad</th><th>Buy in</th><th>Premio</th><th>Resultado</th><th></th></tr></thead><tbody>'+rows+tot+'</tbody></table>';
+  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneo</th><th>Ciudad</th><th>Buy in</th><th>Re</th><th>Costo re</th><th>ITM</th><th>Premio</th><th>Resultado</th><th></th></tr></thead><tbody>'+rows+tot+'</tbody></table>';
 }
 
+
 async function vivoAgregar(){
-  const {error}=await sb.from('torneos_vivo').insert({jugador_id:user.id,fecha:hoy(),torneo:'',ciudad:'',buyin:0,premio:0,resultado:0,aplicado_ars:0});
+  const {error}=await sb.from('torneos_vivo').insert({jugador_id:user.id,fecha:hoy(),torneo:'',ciudad:'',buyin:0,reentry:0,costo_reentry:0,itm:false,premio:0,resultado:0,aplicado_ars:0});
   if(error){toast('Error: '+error.message,true);return;}
   cargarVivo();
 }
@@ -597,24 +602,34 @@ async function _vivoAjustarMakeup(delta){
 }
 
 async function vivoUpd(id,campo,val){
-  let v=val;
-  if(campo==='buyin'||campo==='premio') v=parseFloat(val)||0;
-  else if(campo==='fecha') v=val||hoy();
-  const {data:cur}=await sb.from('torneos_vivo').select('buyin,premio,aplicado_ars').eq('vivo_id',id).limit(1);
+  const {data:cur}=await sb.from('torneos_vivo').select('buyin,premio,reentry,costo_reentry,aplicado_ars').eq('vivo_id',id).limit(1);
   const row=cur&&cur[0]; if(!row) return;
-  const buyin = campo==='buyin'? v : (row.buyin||0);
-  const premio = campo==='premio'? v : (row.premio||0);
-  const resultado = premio - buyin;
-  const delta = resultado - (row.aplicado_ars||0);
-  const patch={}; patch[campo]=v;
-  if(campo==='buyin'||campo==='premio'){
+  const patch={};
+  if(campo==='buyin'||campo==='premio'||campo==='costo_reentry') patch[campo]=parseFloat(val)||0;
+  else if(campo==='reentry') patch.reentry=parseInt(val)||0;
+  else if(campo==='itm') patch.itm=(val===true||val==='true');
+  else if(campo==='fecha') patch.fecha=val||hoy();
+  else patch[campo]=val;
+  const nb = patch.buyin!==undefined?patch.buyin:(row.buyin||0);
+  const nr = patch.reentry!==undefined?patch.reentry:(row.reentry||0);
+  // el costo del reentry se calcula solo, salvo que lo hayas tocado a mano
+  const autoViejo=(row.reentry||0)*(row.buyin||0);
+  if((campo==='buyin'||campo==='reentry') && (row.costo_reentry||0)===autoViejo) patch.costo_reentry=nr*nb;
+  const np = patch.premio!==undefined?patch.premio:(row.premio||0);
+  const nc = patch.costo_reentry!==undefined?patch.costo_reentry:(row.costo_reentry||0);
+  const tocaPlata=['buyin','premio','reentry','costo_reentry'].indexOf(campo)>-1;
+  let delta=0;
+  if(tocaPlata){
+    const resultado=np-nb-nc;
+    delta=resultado-(row.aplicado_ars||0);
     if(!(await _vivoAjustarMakeup(delta))) return;
     patch.resultado=resultado; patch.aplicado_ars=resultado;
   }
   const {error}=await sb.from('torneos_vivo').update(patch).eq('vivo_id',id);
   if(error){toast('Error: '+error.message,true);return;}
-  if(campo==='buyin'||campo==='premio'){ cargarVivo(); if(delta) toast('Makeup actualizado: '+(delta>0?'+':'')+_vivoFmt(delta)+' ARS'); }
+  if(tocaPlata||campo==='itm'){ cargarVivo(); if(delta) toast('Makeup: '+(delta>0?'+':'')+_vivoFmt(delta)+' ARS'); }
 }
+
 
 async function vivoDel(id){
   const {data:cur}=await sb.from('torneos_vivo').select('aplicado_ars').eq('vivo_id',id).limit(1);
