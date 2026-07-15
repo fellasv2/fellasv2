@@ -249,7 +249,7 @@ td.itm-cel{position:relative}
     <div class="sb-nav" style="overflow-y:auto">
       <div class="nav-section">Jugador</div>
       <button class="nav-item active" onclick="irA('grilla',this)">
-        <span style="width:16px;text-align:center;font-size:13px">◈</span> Grilla
+        <span style="width:16px;text-align:center">🃏</span> Grilla
       </button>
       <button class="nav-item" onclick="irA('sesion',this)">
         <span style="width:16px;text-align:center">📋</span> Mi sesion
@@ -264,7 +264,7 @@ td.itm-cel{position:relative}
         <span style="width:16px;text-align:center">🗂️</span> Mis grillas
       </button>
       <button class="nav-item" onclick="irA('vivo',this)">
-        <span style="width:16px;text-align:center">♠</span> En vivo
+        <span style="width:16px;text-align:center">🎰</span> En vivo
       </button>
       <button class="nav-item" onclick="irA('rendimiento',this)">
         <span style="width:16px;text-align:center">📊</span> Rendimiento
@@ -274,7 +274,7 @@ td.itm-cel{position:relative}
         <span style="width:16px;text-align:center">👥</span> Jugadores
       </button>
       <button class="nav-item" onclick="irA('admin-makeup',this)">
-        <span style="width:16px;text-align:center">📊</span> Makeup general
+        <span style="width:16px;text-align:center">📈</span> Makeup general
       </button>
       <button class="nav-item" onclick="irA('admin-movimientos',this)">
         <span style="width:16px;text-align:center">🔄</span> Movimientos
@@ -1306,6 +1306,32 @@ async function cargarMakeup(){
     else cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Makeup antes</th><th>Tu parte</th></tr></thead><tbody>'+sp.map(x=>`<tr><td>${x.fecha}</td><td>${Math.round(x.makeup_antes||0).toLocaleString('es-AR')}</td><td><span class="badge bp">+${Math.round(x.monto_jugador||0).toLocaleString('es-AR')}</span></td></tr>`).join('')+'</tbody></table>';
   }
 }
+async function borrarSesion(scId,sesionId,fecha,resultado){
+  if(!confirm('Eliminar la sesion del '+fecha+'?\n\nSe le van a restar '+Math.round(resultado||0).toLocaleString('es-AR')+' ARS a tu makeup y se van a revertir los saldos de fichas.\nNo se puede deshacer.')) return;
+  // 1) revertir el makeup
+  const {data:mk}=await sb.from('makeup').select('saldo_ars').eq('jugador_id',user.id).limit(1);
+  const prev=(mk&&mk[0]&&mk[0].saldo_ars)||0;
+  const {error:e1}=await sb.from('makeup').upsert({jugador_id:user.id,saldo_ars:prev-Math.round(resultado||0),updated_at:new Date().toISOString()},{onConflict:'jugador_id'});
+  if(e1){ toast('No se pudo revertir el makeup: '+e1.message,true); return; }
+  // 2) revertir los saldos por sala (recalculados de los torneos de esa sesion)
+  if(sesionId){
+    const {data:ent}=await sb.from('grilla_entradas').select('sala_id,resultado').eq('sesion_id',sesionId).eq('estado','finalizado');
+    const net={}; (ent||[]).forEach(e=>{ if(e.sala_id) net[e.sala_id]=(net[e.sala_id]||0)+(e.resultado||0); });
+    for(const sid of Object.keys(net)){
+      const {data:ss}=await sb.from('saldos_sala').select('saldo_actual,moneda').eq('jugador_id',user.id).eq('sala_id',sid).limit(1);
+      if(ss&&ss[0]) await sb.from('saldos_sala').update({saldo_actual:(ss[0].saldo_actual||0)-net[sid],updated_at:new Date().toISOString()}).eq('jugador_id',user.id).eq('sala_id',sid);
+    }
+  }
+  // 3) borrar la sesion cerrada y sus torneos
+  await sb.from('sesiones_cerradas').delete().eq('sc_id',scId);
+  if(sesionId){
+    await sb.from('grilla_entradas').delete().eq('sesion_id',sesionId);
+    await sb.from('sesiones').delete().eq('sesion_id',sesionId);
+  }
+  toast('Sesion del '+fecha+' eliminada');
+  cargarHistorial();
+}
+
 async function cargarHistorial(){
   const {data}=await sb.from('sesiones_cerradas').select('*').eq('jugador_id',user.id).order('sc_id',{ascending:false}).limit(60);
   const cont=document.getElementById('hist-content');
@@ -1317,11 +1343,11 @@ async function cargarHistorial(){
     const res=s.resultado_ars||0, inv=s.total_invertido_ars||0, cob=s.total_cobrado_ars||0;
     tT+=s.torneos_jugados||0; tI+=s.torneos_itm||0; tInv+=inv; tCob+=cob; tRes+=res;
     const r=roi(res,inv);
-    return `<tr><td>${s.fecha}</td><td>${s.torneos_jugados||0}</td><td>${s.torneos_itm||0}</td><td>${fmt(inv)}</td><td>${fmt(cob)}</td><td><span class="badge ${res>=0?'bp':'bn'}">${res>=0?'+':''}${fmt(res)}</span></td><td style="color:${r===null?'var(--muted)':r>=0?'var(--green)':'var(--red)'}">${r===null?'—':(r>=0?'+':'')+r+'%'}</td></tr>`;
+    return `<tr><td>${s.fecha}</td><td>${s.torneos_jugados||0}</td><td>${s.torneos_itm||0}</td><td>${fmt(inv)}</td><td>${fmt(cob)}</td><td><span class="badge ${res>=0?'bp':'bn'}">${res>=0?'+':''}${fmt(res)}</span></td><td style="color:${r===null?'var(--muted)':r>=0?'var(--green)':'var(--red)'}">${r===null?'—':(r>=0?'+':'')+r+'%'}</td><td class="r" style="width:30px"><button onclick="borrarSesion(${s.sc_id},${s.sesion_id||'null'},'${s.fecha}',${res})" title="Eliminar esta sesion" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td></tr>`;
   }).join('');
   const rT=roi(tRes,tInv);
-  const totRow=`<tr style="border-top:2px solid var(--border2);font-weight:700"><td>TOTAL</td><td>${tT}</td><td>${tI}</td><td>${fmt(tInv)}</td><td>${fmt(tCob)}</td><td style="color:${tRes>=0?'var(--green)':'var(--red)'}">${tRes>=0?'+':''}${fmt(tRes)}</td><td style="color:${rT===null?'var(--muted)':rT>=0?'var(--green)':'var(--red)'}">${rT===null?'—':(rT>=0?'+':'')+rT+'%'}</td></tr>`;
-  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneos</th><th>ITM</th><th>Invertido</th><th>Cobrado</th><th>Resultado ARS</th><th>ROI</th></tr></thead><tbody>'+rows+totRow+'</tbody></table>';
+  const totRow=`<tr style="border-top:2px solid var(--border2);font-weight:700"><td>TOTAL</td><td>${tT}</td><td>${tI}</td><td>${fmt(tInv)}</td><td>${fmt(tCob)}</td><td style="color:${tRes>=0?'var(--green)':'var(--red)'}">${tRes>=0?'+':''}${fmt(tRes)}</td><td style="color:${rT===null?'var(--muted)':rT>=0?'var(--green)':'var(--red)'}">${rT===null?'—':(rT>=0?'+':'')+rT+'%'}</td><td></td></tr>`;
+  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneos</th><th>ITM</th><th>Invertido</th><th>Cobrado</th><th>Resultado ARS</th><th>ROI</th><th></th></tr></thead><tbody>'+rows+totRow+'</tbody></table>';
 }
 async function cargarMiSesion(){
   const cont=document.getElementById('sesion-content');
