@@ -575,7 +575,7 @@ async function cargarVivo(){
       <td style="width:48px"><button class="itm-btn ${v.itm?'active':''}" onclick="vivoUpd(${v.vivo_id},'itm',${!v.itm})">${v.itm?'SI':'NO'}</button></td>
       <td class="r" style="width:100px"><input class="cel r" type="number" value="${v.premio||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'premio',this.value)" onclick="this.select()"></td>
       <td class="r" style="width:104px;color:${col}">${(v.resultado||0)>=0?'+':''}${_vivoFmt(v.resultado)}</td>
-      <td style="width:64px">${_vivoChip(v)}</td>
+      <td style="width:92px">${_vivoChip(v)}</td>
       <td class="r" style="width:26px"><button onclick="vivoDel(${v.vivo_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
     </tr>`;
   }).join('');
@@ -583,19 +583,20 @@ async function cargarVivo(){
     <td colspan="3">TOTAL</td><td class="r">${_vivoFmt(tB)}</td><td></td><td></td>
     <td>${tI}</td><td class="r">${_vivoFmt(tP)}</td>
     <td class="r" style="color:${tR>=0?'var(--green)':'var(--red)'}">${tR>=0?'+':''}${_vivoFmt(tR)}</td><td></td><td></td></tr>`;
-  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneo</th><th>Ciudad</th><th>Buy in</th><th>Re</th><th>Costo re</th><th>ITM</th><th>Premio</th><th>Resultado</th><th>Comp.</th><th></th></tr></thead><tbody>'+rows+tot+'</tbody></table>';
+  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneo</th><th>Ciudad</th><th>Buy in</th><th>Re</th><th>Costo re</th><th>ITM</th><th>Premio</th><th>Resultado</th><th>Comprobante</th><th></th></tr></thead><tbody>'+rows+tot+'</tbody></table>';
 }
 
 
 function _vivoChip(v){
   const n=(v.comp_inscripcion?1:0)+(v.comp_cobro?1:0);
   const col=n===2?'var(--green)':n===1?'var(--silver)':'var(--muted)';
-  return `<button onclick="vivoComp(${v.vivo_id})" title="Comprobantes" style="background:none;border:1px solid var(--border2);color:${col};cursor:pointer;font-size:10px;padding:2px 6px;border-radius:3px">&#128206; ${n}/2</button>`;
+  return `<button onclick="vivoComp(${v.vivo_id})" title="Comprobantes" style="background:none;border:1px solid var(--border2);color:${col};cursor:pointer;font-size:10px;padding:3px 8px;border-radius:3px;white-space:nowrap">&#128206; ${n}/2</button>`;
 }
 
 async function vivoComp(id){
-  const {data}=await sb.from('torneos_vivo').select('vivo_id,torneo,comp_inscripcion,comp_cobro').eq('vivo_id',id).limit(1);
-  const v=data&&data[0]; if(!v) return;
+  const {data,error}=await sb.from('torneos_vivo').select('vivo_id,torneo,comp_inscripcion,comp_cobro').eq('vivo_id',id).limit(1);
+  if(error){ toast('No se pueden usar los comprobantes todavia: '+error.message,true); return; }
+  const v=data&&data[0]; if(!v){ toast('No encontre el torneo',true); return; }
   const slot=(tipo,lbl,path)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border2)">
       <div><div style="font-size:12px">${lbl}</div><div style="font-size:10px;color:${path?'var(--green)':'var(--muted)'}">${path?'Cargado':'Sin cargar'}</div></div>
       <div style="display:flex;gap:6px">
