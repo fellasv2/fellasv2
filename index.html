@@ -252,6 +252,9 @@ td.itm-cel{position:relative}
       <button class="nav-item" onclick="irA('plantillas',this)">
         <span style="width:16px;text-align:center">🗂️</span> Mis grillas
       </button>
+      <button class="nav-item" onclick="irA('vivo',this)">
+        <span style="width:16px;text-align:center">♠</span> En vivo
+      </button>
       <div class="nav-section">Administracion</div>
       <button class="nav-item" onclick="irA('admin-jugadores',this)">
         <span style="width:16px;text-align:center">👥</span> Jugadores
@@ -397,6 +400,23 @@ td.itm-cel{position:relative}
           </div>
         </div>
 
+        <!-- PAGINA: EN VIVO -->
+        <div class="page" id="page-vivo">
+          <div class="page-header">
+            <div class="page-title">Torneos en vivo</div>
+            <div class="page-subtitle">Cargalos a mano. El resultado se suma solo a tu makeup.</div>
+          </div>
+          <div class="page-body">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <div class="card-title" style="margin:0">Historial</div>
+                <button class="lbtn" style="width:auto;margin:0;padding:7px 14px;font-size:11px" onclick="vivoAgregar()">+ Torneo</button>
+              </div>
+              <div id="vivo-content"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- PAGINA: ADMIN JUGADORES -->
         <div class="page" id="page-admin-jugadores">
           <div class="page-header">
@@ -531,6 +551,78 @@ async function cargarSalas(){
   const {data}=await sb.from('salas').select('sala_id,nombre').eq('activa',true).order('nombre');
   salas=data||[];
   document.getElementById('dl-salas').innerHTML=salas.map(s=>`<option value="${s.nombre}">`).join('');
+}
+
+// ── TORNEOS EN VIVO ───────────────────
+function _vivoFmt(n){ return Math.round(n||0).toLocaleString('es-AR'); }
+
+async function cargarVivo(){
+  const {data}=await sb.from('torneos_vivo').select('*').eq('jugador_id',user.id).order('fecha',{ascending:false}).order('vivo_id',{ascending:false});
+  const cont=document.getElementById('vivo-content'); if(!cont) return;
+  if(!data||!data.length){ cont.innerHTML='<div class="empty-pg"><p>Sin torneos en vivo cargados.<br>Usa "+ Torneo" para agregar el primero.</p></div>'; return; }
+  let tB=0,tP=0,tR=0;
+  const rows=data.map(v=>{
+    tB+=v.buyin||0; tP+=v.premio||0; tR+=v.resultado||0;
+    const col=(v.resultado||0)>0?'var(--green)':(v.resultado||0)<0?'var(--red)':'var(--muted)';
+    return `<tr>
+      <td style="width:120px"><input class="cel" type="date" value="${v.fecha||''}" onchange="vivoUpd(${v.vivo_id},'fecha',this.value)"></td>
+      <td><input class="cel" type="text" value="${esc(v.torneo||'')}" placeholder="Nombre" onblur="vivoUpd(${v.vivo_id},'torneo',this.value)"></td>
+      <td style="width:110px"><input class="cel" type="text" value="${esc(v.ciudad||'')}" placeholder="Ciudad" onblur="vivoUpd(${v.vivo_id},'ciudad',this.value)"></td>
+      <td class="r" style="width:110px"><input class="cel r" type="number" value="${v.buyin||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'buyin',this.value)" onclick="this.select()"></td>
+      <td class="r" style="width:110px"><input class="cel r" type="number" value="${v.premio||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'premio',this.value)" onclick="this.select()"></td>
+      <td class="r" style="width:110px;color:${col}">${(v.resultado||0)>=0?'+':''}${_vivoFmt(v.resultado)}</td>
+      <td class="r" style="width:30px"><button onclick="vivoDel(${v.vivo_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
+    </tr>`;
+  }).join('');
+  const tot=`<tr style="border-top:2px solid var(--border2);font-weight:600">
+    <td colspan="3">TOTAL</td>
+    <td class="r">${_vivoFmt(tB)}</td><td class="r">${_vivoFmt(tP)}</td>
+    <td class="r" style="color:${tR>=0?'var(--green)':'var(--red)'}">${tR>=0?'+':''}${_vivoFmt(tR)}</td><td></td></tr>`;
+  cont.innerHTML='<table class="ht"><thead><tr><th>Fecha</th><th>Torneo</th><th>Ciudad</th><th>Buy in</th><th>Premio</th><th>Resultado</th><th></th></tr></thead><tbody>'+rows+tot+'</tbody></table>';
+}
+
+async function vivoAgregar(){
+  const {error}=await sb.from('torneos_vivo').insert({jugador_id:user.id,fecha:hoy(),torneo:'',ciudad:'',buyin:0,premio:0,resultado:0,aplicado_ars:0});
+  if(error){toast('Error: '+error.message,true);return;}
+  cargarVivo();
+}
+
+async function _vivoAjustarMakeup(delta){
+  if(!delta) return true;
+  const {data:mk}=await sb.from('makeup').select('saldo_ars').eq('jugador_id',user.id).limit(1);
+  const prev=(mk&&mk[0]&&mk[0].saldo_ars)||0;
+  const {error}=await sb.from('makeup').upsert({jugador_id:user.id,saldo_ars:prev+delta,updated_at:new Date().toISOString()},{onConflict:'jugador_id'});
+  if(error){ toast('No se pudo actualizar el makeup: '+error.message,true); return false; }
+  return true;
+}
+
+async function vivoUpd(id,campo,val){
+  let v=val;
+  if(campo==='buyin'||campo==='premio') v=parseFloat(val)||0;
+  else if(campo==='fecha') v=val||hoy();
+  const {data:cur}=await sb.from('torneos_vivo').select('buyin,premio,aplicado_ars').eq('vivo_id',id).limit(1);
+  const row=cur&&cur[0]; if(!row) return;
+  const buyin = campo==='buyin'? v : (row.buyin||0);
+  const premio = campo==='premio'? v : (row.premio||0);
+  const resultado = premio - buyin;
+  const delta = resultado - (row.aplicado_ars||0);
+  const patch={}; patch[campo]=v;
+  if(campo==='buyin'||campo==='premio'){
+    if(!(await _vivoAjustarMakeup(delta))) return;
+    patch.resultado=resultado; patch.aplicado_ars=resultado;
+  }
+  const {error}=await sb.from('torneos_vivo').update(patch).eq('vivo_id',id);
+  if(error){toast('Error: '+error.message,true);return;}
+  if(campo==='buyin'||campo==='premio'){ cargarVivo(); if(delta) toast('Makeup actualizado: '+(delta>0?'+':'')+_vivoFmt(delta)+' ARS'); }
+}
+
+async function vivoDel(id){
+  const {data:cur}=await sb.from('torneos_vivo').select('aplicado_ars').eq('vivo_id',id).limit(1);
+  const ap=(cur&&cur[0]&&cur[0].aplicado_ars)||0;
+  if(!confirm('Borrar este torneo?'+(ap?' Se le van a restar '+_vivoFmt(ap)+' ARS a tu makeup.':''))) return;
+  if(ap && !(await _vivoAjustarMakeup(-ap))) return;
+  await sb.from('torneos_vivo').delete().eq('vivo_id',id);
+  cargarVivo();
 }
 
 // ── MIS GRILLAS (PLANTILLAS) ──────────
@@ -978,7 +1070,7 @@ function irA(pagina,btn){
   const page=document.getElementById('page-'+pagina);
   if(page)page.classList.add('active');
   if(btn)btn.classList.add('active');
-  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones','plantillas':'Mis grillas'};
+  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones','plantillas':'Mis grillas','vivo':'Torneos en vivo'};
   const topbar=document.querySelector('.topbar-t');
   if(topbar)topbar.textContent=titulos[pagina]||pagina;
   if(pagina==='makeup')cargarMakeup();
@@ -986,6 +1078,7 @@ function irA(pagina,btn){
   if(pagina==='sesion')cargarMiSesion();
   if(pagina==='admin-cotizaciones')cargarFormCotizaciones();
   if(pagina==='plantillas')cargarPlantillas();
+  if(pagina==='vivo')cargarVivo();
   localStorage.setItem('pg',pagina);
 }
 async function cargarMakeup(){
