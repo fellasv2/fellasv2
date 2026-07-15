@@ -15,6 +15,17 @@
   --text:#e6ecf3;--muted:#6b7887;--muted2:#9fb0bf;
   --sw:260px;
 }
+@media(max-width:900px){
+  .sidebar{position:static;width:100%;height:auto;bottom:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .sb-nav{display:flex;flex-wrap:wrap;gap:4px}
+  .nav-item{width:auto}
+  .nav-section{width:100%;margin-top:6px}
+  .main{margin-left:0}
+  .content{flex-direction:column;padding:12px;gap:12px}
+  .content-side{width:100%}
+  .page-body,.twrap{overflow-x:auto}
+  .ht{min-width:620px}
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
 body::before{content:'';position:fixed;inset:0;background-image:url('fondo.png');background-repeat:no-repeat;background-position:center center;background-size:40%;z-index:0;opacity:0.15;pointer-events:none}
@@ -559,6 +570,8 @@ function _vivoFmt(n){ return Math.round(n||0).toLocaleString('es-AR'); }
 async function cargarVivo(){
   const {data}=await sb.from('torneos_vivo').select('*').eq('jugador_id',user.id).order('fecha',{ascending:false}).order('vivo_id',{ascending:false});
   const cont=document.getElementById('vivo-content'); if(!cont) return;
+  const {data:comps}=await sb.from('comprobantes').select('vivo_id').eq('jugador_id',user.id);
+  const cnt={}; (comps||[]).forEach(c=>{cnt[c.vivo_id]=(cnt[c.vivo_id]||0)+1;});
   if(!data||!data.length){ cont.innerHTML='<div class="empty-pg"><p>Sin torneos en vivo cargados.<br>Usa "+ Torneo" para agregar el primero.</p></div>'; return; }
   let tB=0,tP=0,tR=0,tI=0;
   const rows=data.map(v=>{
@@ -575,7 +588,7 @@ async function cargarVivo(){
       <td style="width:48px"><button class="itm-btn ${v.itm?'active':''}" onclick="vivoUpd(${v.vivo_id},'itm',${!v.itm})">${v.itm?'SI':'NO'}</button></td>
       <td class="r" style="width:100px"><input class="cel r" type="number" value="${v.premio||''}" placeholder="0" min="0" step="any" onchange="vivoUpd(${v.vivo_id},'premio',this.value)" onclick="this.select()"></td>
       <td class="r" style="width:104px;color:${col}">${(v.resultado||0)>=0?'+':''}${_vivoFmt(v.resultado)}</td>
-      <td style="width:92px">${_vivoChip(v)}</td>
+      <td style="width:92px">${_vivoChip(v,cnt[v.vivo_id])}</td>
       <td class="r" style="width:26px"><button onclick="vivoDel(${v.vivo_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">&times;</button></td>
     </tr>`;
   }).join('');
@@ -587,56 +600,55 @@ async function cargarVivo(){
 }
 
 
-function _vivoChip(v){
-  const n=(v.comp_inscripcion?1:0)+(v.comp_cobro?1:0);
-  const col=n===2?'var(--green)':n===1?'var(--silver)':'var(--muted)';
-  return `<button onclick="vivoComp(${v.vivo_id})" title="Comprobantes" style="background:none;border:1px solid var(--border2);color:${col};cursor:pointer;font-size:10px;padding:3px 8px;border-radius:3px;white-space:nowrap">&#128206; ${n}/2</button>`;
+function _vivoChip(v,n){
+  n=n||0;
+  const col=n>0?'var(--green)':'var(--muted)';
+  return `<button onclick="vivoComp(${v.vivo_id})" title="Comprobantes" style="background:none;border:1px solid var(--border2);color:${col};cursor:pointer;font-size:10px;padding:3px 8px;border-radius:3px;white-space:nowrap">&#128206; ${n||''}</button>`;
 }
 
 async function vivoComp(id){
-  const {data,error}=await sb.from('torneos_vivo').select('vivo_id,torneo,comp_inscripcion,comp_cobro').eq('vivo_id',id).limit(1);
+  const {data,error}=await sb.from('comprobantes').select('*').eq('vivo_id',id).order('comp_id');
   if(error){ toast('No se pueden usar los comprobantes todavia: '+error.message,true); return; }
-  const v=data&&data[0]; if(!v){ toast('No encontre el torneo',true); return; }
-  const slot=(tipo,lbl,path)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border2)">
-      <div><div style="font-size:12px">${lbl}</div><div style="font-size:10px;color:${path?'var(--green)':'var(--muted)'}">${path?'Cargado':'Sin cargar'}</div></div>
-      <div style="display:flex;gap:6px">
-        ${path?`<button class="cancel-btn" style="padding:5px 10px" onclick="vivoVerComp('${path}')">Ver</button>`:''}
-        <button class="cancel-btn" style="padding:5px 10px" onclick="vivoSubirComp(${id},'${tipo}')">${path?'Reemplazar':'Subir'}</button>
-        ${path?`<button class="cancel-btn" style="padding:5px 9px;color:var(--red)" onclick="vivoBorrarComp(${id},'${tipo}','${path}')">&times;</button>`:''}
+  const lista=(data&&data.length)? data.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2)">
+      <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${esc(c.nombre||'Sin nombre')}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="cancel-btn" style="padding:5px 10px" onclick="vivoVerComp('${c.path}')">Ver</button>
+        <button class="cancel-btn" style="padding:5px 9px;color:var(--red)" onclick="vivoBorrarComp(${id},${c.comp_id},'${c.path}')">&times;</button>
       </div>
-    </div>`;
-  const ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-comp';
-  ov.innerHTML=`<div class="modal" style="max-width:380px;border-top-color:var(--silver)">
-    <div class="modal-t">Comprobantes${v.torneo?' &middot; '+esc(v.torneo):''}</div>
+    </div>`).join('') : '<div style="font-size:11px;color:var(--muted);padding:14px 0;text-align:center">Todavia no subiste ningun comprobante.</div>';
+  const ov=document.getElementById('modal-comp')||document.createElement('div');
+  ov.className='overlay open'; ov.id='modal-comp';
+  ov.innerHTML=`<div class="modal" style="max-width:400px;border-top-color:var(--silver)">
+    <div class="modal-t">Comprobantes</div>
     <div class="modal-b" style="margin-bottom:12px">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Foto o PDF del comprobante del casino. Solo lo ves vos y el administrador.</div>
-      ${slot('inscripcion','Inscripcion',v.comp_inscripcion||'')}
-      ${slot('cobro','Cobro',v.comp_cobro||'')}
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Foto o PDF del casino. Subi los que necesites y ponele el nombre que quieras.</div>
+      ${lista}
+      <button class="lbtn" style="width:100%;margin-top:12px;padding:9px;font-size:11px" onclick="vivoSubirComp(${id})">+ Subir comprobante</button>
     </div>
     <div class="modal-a"><button class="cancel-btn" onclick="cerrarComp()">Cerrar</button></div>
   </div>`;
-  document.body.appendChild(ov);
+  if(!ov.parentNode) document.body.appendChild(ov);
 }
 
 function cerrarComp(){ const o=document.getElementById('modal-comp'); if(o) o.remove(); }
 
-function vivoSubirComp(id,tipo){
+function vivoSubirComp(id){
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='image/*,application/pdf';
   inp.onchange=async function(){
     const f=inp.files&&inp.files[0]; if(!f) return;
     if(f.size>5*1024*1024){ toast('El archivo es muy grande (maximo 5 MB)',true); return; }
-    const ext=((f.name.split('.').pop())||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
-    const path=user.id+'/'+id+'/'+tipo+'.'+ext;
-    toast('Subiendo comprobante...');
+    const nombre=prompt('Nombre del comprobante:','');
+    if(nombre===null) return;
+    const ext=((f.name.split('.').pop())||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,5);
+    const path=user.id+'/'+id+'/'+Date.now()+'.'+ext;
+    toast('Subiendo...');
     const {error}=await sb.storage.from('comprobantes').upload(path,f,{upsert:true});
     if(error){ toast('Error al subir: '+error.message,true); return; }
-    const campo = tipo==='inscripcion'?'comp_inscripcion':'comp_cobro';
-    const patch={}; patch[campo]=path;
-    const {error:e2}=await sb.from('torneos_vivo').update(patch).eq('vivo_id',id);
+    const {error:e2}=await sb.from('comprobantes').insert({jugador_id:user.id,vivo_id:id,nombre:(nombre||'Sin nombre').slice(0,80),path:path});
     if(e2){ toast('Error: '+e2.message,true); return; }
     toast('Comprobante cargado');
-    cerrarComp(); vivoComp(id); cargarVivo();
+    vivoComp(id); cargarVivo();
   };
   inp.click();
 }
@@ -647,14 +659,12 @@ async function vivoVerComp(path){
   window.open(data.signedUrl,'_blank');
 }
 
-async function vivoBorrarComp(id,tipo,path){
+async function vivoBorrarComp(vivoId,compId,path){
   if(!confirm('Borrar este comprobante?')) return;
   await sb.storage.from('comprobantes').remove([path]);
-  const campo = tipo==='inscripcion'?'comp_inscripcion':'comp_cobro';
-  const patch={}; patch[campo]=null;
-  await sb.from('torneos_vivo').update(patch).eq('vivo_id',id);
+  await sb.from('comprobantes').delete().eq('comp_id',compId);
   toast('Comprobante borrado');
-  cerrarComp(); vivoComp(id); cargarVivo();
+  vivoComp(vivoId); cargarVivo();
 }
 
 async function vivoAgregar(){
@@ -707,6 +717,8 @@ async function vivoDel(id){
   const ap=(cur&&cur[0]&&cur[0].aplicado_ars)||0;
   if(!confirm('Borrar este torneo?'+(ap?' Se le van a restar '+_vivoFmt(ap)+' ARS a tu makeup.':''))) return;
   if(ap && !(await _vivoAjustarMakeup(-ap))) return;
+  const {data:cs}=await sb.from('comprobantes').select('path').eq('vivo_id',id);
+  if(cs&&cs.length) await sb.storage.from('comprobantes').remove(cs.map(c=>c.path));
   await sb.from('torneos_vivo').delete().eq('vivo_id',id);
   cargarVivo();
 }
