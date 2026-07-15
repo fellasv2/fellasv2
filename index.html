@@ -548,8 +548,11 @@ function _plTabs(){
 
 function _plFila(r){
   const salaOpts=['<option value="">- sala -</option>'].concat(salas.map(s=>`<option value="${s.sala_id}" ${r.sala_id==s.sala_id?'selected':''}>${esc(s.nombre)}</option>`)).join('');
+  const c=r.color||'#3a4a5a';
+  const dot=(hex,t)=>`<span onclick="plColor(${r.plantilla_id},'${hex}')" title="${t}" style="display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:3px;cursor:pointer;background:${hex==='#3a4a5a'?'#2a3540':hex};border:1px solid ${c===hex?'var(--text)':'transparent'};box-sizing:border-box"></span>`;
   return `<tr>
-    <td><input class="cel" type="text" value="${esc(r.nombre_torneo||'')}" placeholder="Nombre" onblur="plUpd(${r.plantilla_id},'nombre_torneo',this.value)"></td>
+    <td style="width:78px;white-space:nowrap">${dot('#e05656','Rojo')}${dot('#e8913a','Naranja')}${dot('#c9a84c','Amarillo')}${dot('#4caf7d','Verde')}${dot('#3a4a5a','Sin color')}</td>
+    <td style="background:${c!=='#3a4a5a'?c+'28':'transparent'};border-left:2px solid ${c!=='#3a4a5a'?c+'88':'transparent'}"><input class="cel" type="text" value="${esc(r.nombre_torneo||'')}" placeholder="Nombre" onblur="plUpd(${r.plantilla_id},'nombre_torneo',this.value)"></td>
     <td><select class="cel" onchange="plUpd(${r.plantilla_id},'sala_id',this.value)">${salaOpts}</select></td>
     <td><input class="cel" type="time" value="${r.hora||''}" onchange="plUpd(${r.plantilla_id},'hora',this.value)"></td>
     <td class="r"><input class="cel r" type="number" value="${r.buyin||''}" placeholder="0" min="0" step="any" onchange="plUpd(${r.plantilla_id},'buyin',this.value)"></td>
@@ -563,7 +566,7 @@ async function _plCargarDia(dia){
   const {data}=await sb.from('plantillas_grilla').select('*').eq('jugador_id',user.id).eq('dia_semana',dia).order('orden').order('hora');
   const cont=document.getElementById('pl-content'); if(!cont) return;
   if(!data||!data.length){ cont.innerHTML='<div class="empty-pg"><p>Sin torneos en esta plantilla.<br>Usa "Traer la grilla de hoy" para copiar tu grilla actual, o "+ Torneo".</p></div>'; return; }
-  cont.innerHTML='<table class="ht"><thead><tr><th>Torneo</th><th>Sala</th><th>Hora</th><th>Buy-in</th><th></th></tr></thead><tbody>'+data.map(_plFila).join('')+'</tbody></table>';
+  cont.innerHTML='<table class="ht"><thead><tr><th></th><th>Torneo</th><th>Sala</th><th>Hora</th><th>Buy-in</th><th></th></tr></thead><tbody>'+data.map(_plFila).join('')+'</tbody></table>';
 }
 
 async function plAgregar(){
@@ -575,6 +578,11 @@ async function plAgregar(){
 
 async function plDel(id){
   await sb.from('plantillas_grilla').delete().eq('plantilla_id',id);
+  _plCargarDia(window._plDia);
+}
+
+async function plColor(id,col){
+  await sb.from('plantillas_grilla').update({color:col}).eq('plantilla_id',id);
   _plCargarDia(window._plDia);
 }
 
@@ -591,7 +599,7 @@ async function plGuardarHoy(){
   if(!filas.length){ toast('Tu grilla de hoy esta vacia',true); return; }
   if(!confirm('Esto reemplaza la plantilla del '+DIAS_SEM[dia]+' con los '+filas.length+' torneos de tu grilla de hoy. Seguir?')) return;
   await sb.from('plantillas_grilla').delete().eq('jugador_id',user.id).eq('dia_semana',dia);
-  const nuevos=filas.map((f,i)=>({jugador_id:user.id,dia_semana:dia,nombre_torneo:f.nombre_torneo||'',sala_id:f.sala_id||null,hora:f.hora||null,buyin:f.buyin||0,orden:i}));
+  const nuevos=filas.map((f,i)=>({jugador_id:user.id,dia_semana:dia,nombre_torneo:f.nombre_torneo||'',sala_id:f.sala_id||null,hora:f.hora||null,buyin:f.buyin||0,color:f.color||'#3a4a5a',orden:i}));
   const {error}=await sb.from('plantillas_grilla').insert(nuevos);
   if(error){toast('Error al guardar: '+error.message,true);return;}
   toast('Plantilla del '+DIAS_SEM[dia]+' guardada ('+nuevos.length+' torneos) ✓');
@@ -629,7 +637,7 @@ async function cargarPlantillaDia(dia){
   if(filas.length && !confirm('Esto reemplaza tu grilla de hoy ('+filas.length+' torneos) con la plantilla del '+DIAS_SEM[dia]+' ('+pl.length+' torneos). Seguir?')) return;
   cerrarCargarPlantilla();
   await sb.from('grilla_entradas').delete().eq('sesion_id',sesion.sesion_id);
-  const nuevos=pl.map(p=>({sesion_id:sesion.sesion_id,nombre_torneo:p.nombre_torneo||'',sala_id:p.sala_id||null,hora:p.hora||null,buyin:p.buyin||0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:'#3a4a5a'}));
+  const nuevos=pl.map(p=>({sesion_id:sesion.sesion_id,nombre_torneo:p.nombre_torneo||'',sala_id:p.sala_id||null,hora:p.hora||null,buyin:p.buyin||0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:p.color||'#3a4a5a'}));
   const {error}=await sb.from('grilla_entradas').insert(nuevos);
   if(error){toast('Error al cargar: '+error.message,true);return;}
   toast('Cargue la plantilla del '+DIAS_SEM[dia]+' ('+nuevos.length+' torneos)');
