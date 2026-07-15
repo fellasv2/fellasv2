@@ -266,6 +266,9 @@ td.itm-cel{position:relative}
       <button class="nav-item" onclick="irA('vivo',this)">
         <span style="width:16px;text-align:center">♠</span> En vivo
       </button>
+      <button class="nav-item" onclick="irA('rendimiento',this)">
+        <span style="width:16px;text-align:center">📊</span> Rendimiento
+      </button>
       <div class="nav-section">Administracion</div>
       <button class="nav-item" onclick="irA('admin-jugadores',this)">
         <span style="width:16px;text-align:center">👥</span> Jugadores
@@ -428,6 +431,17 @@ td.itm-cel{position:relative}
           </div>
         </div>
 
+        <!-- PAGINA: RENDIMIENTO -->
+        <div class="page" id="page-rendimiento">
+          <div class="page-header">
+            <div class="page-title">Rendimiento</div>
+            <div class="page-subtitle">Como te fue en cada club, mes a mes. Se calcula solo con tus torneos.</div>
+          </div>
+          <div class="page-body">
+            <div id="rend-content"></div>
+          </div>
+        </div>
+
         <!-- PAGINA: ADMIN JUGADORES -->
         <div class="page" id="page-admin-jugadores">
           <div class="page-header">
@@ -562,6 +576,92 @@ async function cargarSalas(){
   const {data}=await sb.from('salas').select('sala_id,nombre').eq('activa',true).order('nombre');
   salas=data||[];
   document.getElementById('dl-salas').innerHTML=salas.map(s=>`<option value="${s.nombre}">`).join('');
+}
+
+// ── RENDIMIENTO (meses x club) ────────
+const MESES_NOM=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _rN(n,d){ const v=Math.round((n||0)*(d?100:1))/(d?100:1); return v.toLocaleString('es-AR',{minimumFractionDigits:d?2:0,maximumFractionDigits:d?2:0}); }
+
+async function cargarRendimiento(){
+  const cont=document.getElementById('rend-content'); if(!cont) return;
+  cont.innerHTML='<div class="empty-pg"><p>Calculando...</p></div>';
+  const [entR,vivR,hisR,scR]=await Promise.all([
+    sb.from('grilla_entradas').select('buyin,costo_rebuys,premio,itm,sala_id,salas(nombre,moneda),sesiones!inner(fecha)').eq('estado','finalizado'),
+    sb.from('torneos_vivo').select('fecha,buyin,costo_reentry,premio,itm,resultado').eq('jugador_id',user.id),
+    sb.from('historial_mensual').select('*').eq('jugador_id',user.id),
+    sb.from('sesiones_cerradas').select('fecha,resultado_ars,total_invertido_ars,total_cobrado_ars').eq('jugador_id',user.id)
+  ]);
+  const M={};
+  const gM=(a,m)=>{const k=a+'-'+String(m).padStart(2,'0'); if(!M[k])M[k]={k,anio:a,mes:m,clubs:{},invArs:0,cobArs:0,netArs:0,tieneArs:false}; return M[k];};
+  const gC=(mm,nom,mon)=>{if(!mm.clubs[nom])mm.clubs[nom]={moneda:mon||'',mtts:0,itm:0,buyin:0,premios:0}; return mm.clubs[nom];};
+
+  (entR.data||[]).forEach(e=>{
+    const f=e.sesiones&&e.sesiones.fecha; if(!f) return;
+    const c=gC(gM(+f.slice(0,4),+f.slice(5,7)),(e.salas&&e.salas.nombre)||'Sin sala',(e.salas&&e.salas.moneda)||'');
+    c.mtts++; if(e.itm)c.itm++;
+    c.buyin+=(e.buyin||0)+(e.costo_rebuys||0); c.premios+=(e.premio||0);
+  });
+  (vivR.data||[]).forEach(v=>{
+    if(!v.fecha) return;
+    const mm=gM(+v.fecha.slice(0,4),+v.fecha.slice(5,7));
+    const c=gC(mm,'En vivo','ARS');
+    c.mtts++; if(v.itm)c.itm++;
+    c.buyin+=(v.buyin||0)+(v.costo_reentry||0); c.premios+=(v.premio||0);
+    mm.invArs+=(v.buyin||0)+(v.costo_reentry||0); mm.cobArs+=(v.premio||0); mm.netArs+=(v.resultado||0); mm.tieneArs=true;
+  });
+  (scR.data||[]).forEach(x=>{
+    if(!x.fecha) return;
+    const mm=gM(+x.fecha.slice(0,4),+x.fecha.slice(5,7));
+    mm.invArs+=(x.total_invertido_ars||0); mm.cobArs+=(x.total_cobrado_ars||0); mm.netArs+=(x.resultado_ars||0); mm.tieneArs=true;
+  });
+  (hisR.data||[]).forEach(h=>{
+    const mm=gM(h.anio,h.mes);
+    const c=gC(mm,h.sala||'?',h.moneda||'');
+    if(c.mtts===0){ c.mtts=h.mtts||0; c.itm=h.itm||0; c.buyin=h.buy_in||0; c.premios=h.premios||0; c.hist=true; }
+  });
+
+  const claves=Object.keys(M).sort().reverse();
+  if(!claves.length){ cont.innerHTML='<div class="empty-pg"><div class="ico">📊</div><p>Todavia no hay datos.<br>Cerra una sesion o carga un torneo en vivo y aparece aca.</p></div>'; return; }
+
+  cont.innerHTML=claves.map(k=>{
+    const mm=M[k];
+    const clubs=Object.keys(mm.clubs).filter(n=>mm.clubs[n].mtts>0).sort((a,b)=>mm.clubs[b].mtts-mm.clubs[a].mtts);
+    if(!clubs.length) return '';
+    let tM=0,tI=0;
+    const filas=clubs.map(n=>{
+      const c=mm.clubs[n];
+      const net=c.premios-c.buyin, avg=c.mtts?c.buyin/c.mtts:0;
+      const roi=c.buyin>0?net/c.buyin*100:null, pitm=c.mtts?c.itm/c.mtts*100:0;
+      tM+=c.mtts; tI+=c.itm;
+      const cn=net>0?'var(--green)':net<0?'var(--red)':'var(--muted)';
+      const cr=roi===null?'var(--muted)':roi>=0?'var(--green)':'var(--red)';
+      return `<tr>
+        <td>${esc(n)}${c.hist?' <span style="font-size:9px;color:var(--muted)">hist</span>':''}</td>
+        <td class="r">${c.mtts}</td><td class="r">${c.itm}</td>
+        <td class="r">${_rN(c.buyin,1)}</td><td class="r">${_rN(c.premios,1)}</td>
+        <td class="r" style="color:${cn}">${net>=0?'+':''}${_rN(net,1)}</td>
+        <td class="r">${_rN(avg,1)}</td>
+        <td class="r" style="color:${cr}">${roi===null?'—':(roi>=0?'+':'')+_rN(roi,1)+'%'}</td>
+        <td class="r">${_rN(pitm,1)}%</td>
+        <td style="color:var(--muted);font-size:10px">${esc(c.moneda||'')}</td>
+      </tr>`;
+    }).join('');
+    const roiT=mm.invArs>0?mm.netArs/mm.invArs*100:null;
+    const totRow=mm.tieneArs?`<tr style="border-top:2px solid var(--border2);font-weight:600">
+        <td>TOTAL en ARS</td><td class="r">${tM}</td><td class="r">${tI}</td>
+        <td class="r">${_rN(mm.invArs)}</td><td class="r">${_rN(mm.cobArs)}</td>
+        <td class="r" style="color:${mm.netArs>=0?'var(--green)':'var(--red)'}">${mm.netArs>=0?'+':''}${_rN(mm.netArs)}</td>
+        <td></td>
+        <td class="r" style="color:${roiT===null?'var(--muted)':roiT>=0?'var(--green)':'var(--red)'}">${roiT===null?'—':(roiT>=0?'+':'')+_rN(roiT,1)+'%'}</td>
+        <td class="r">${tM?_rN(tI/tM*100,1):'0'}%</td><td style="font-size:10px;color:var(--muted)">ARS</td>
+      </tr>`:'';
+    return `<div class="card">
+      <div class="card-title">${MESES_NOM[mm.mes]||mm.mes} ${mm.anio}</div>
+      <table class="ht"><thead><tr><th>Club</th><th class="r">MTTS</th><th class="r">ITM</th><th class="r">Buy in</th><th class="r">Premios</th><th class="r">Net</th><th class="r">Avg</th><th class="r">ROI</th><th class="r">%ITM</th><th></th></tr></thead>
+      <tbody>${filas}${totRow}</tbody></table>
+      ${mm.tieneArs?'':'<div style="font-size:10px;color:var(--muted);margin-top:8px">Sin total en pesos: son datos historicos migrados, cada club en su moneda.</div>'}
+    </div>`;
+  }).join('');
 }
 
 // ── TORNEOS EN VIVO ───────────────────
@@ -1168,7 +1268,7 @@ function irA(pagina,btn){
   const page=document.getElementById('page-'+pagina);
   if(page)page.classList.add('active');
   if(btn)btn.classList.add('active');
-  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones','plantillas':'Mis grillas','vivo':'Torneos en vivo'};
+  const titulos={'grilla':'Grilla del dia','sesion':'Mi sesion','historial':'Historial','makeup':'Mi Makeup','admin-jugadores':'Jugadores','admin-makeup':'Makeup general','admin-movimientos':'Movimientos','admin-cotizaciones':'Cotizaciones','plantillas':'Mis grillas','vivo':'Torneos en vivo','rendimiento':'Rendimiento'};
   const topbar=document.querySelector('.topbar-t');
   if(topbar)topbar.textContent=titulos[pagina]||pagina;
   if(pagina==='makeup')cargarMakeup();
@@ -1177,6 +1277,7 @@ function irA(pagina,btn){
   if(pagina==='admin-cotizaciones')cargarFormCotizaciones();
   if(pagina==='plantillas')cargarPlantillas();
   if(pagina==='vivo')cargarVivo();
+  if(pagina==='rendimiento')cargarRendimiento();
   localStorage.setItem('pg',pagina);
 }
 async function cargarMakeup(){
