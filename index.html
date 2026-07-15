@@ -282,7 +282,7 @@ td.itm-cel{position:relative}
         <div class="page active" id="page-grilla" style="flex-direction:row">
           <div class="content-main" style="padding:18px 24px;display:flex;flex-direction:column">
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
-              <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4a5a6a;color:#e8eef5;border:none;cursor:pointer" onclick="cargarPlantillaHoy()">&#8635; Cargar plantilla</button>
+              <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4a5a6a;color:#e8eef5;border:none;cursor:pointer" onclick="abrirCargarPlantilla()">&#8635; Cargar plantilla</button>
               <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#9aa5b4;color:#0a0a0a;border:none;cursor:pointer" onclick="agregarFila()">+ AGREGAR</button>
               <button style="padding:7px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:#4caf7d;color:#0a0a0a;border:none;cursor:pointer" onclick="abrirFinalizarSesion()">FINALIZAR SESION</button>
             </div>
@@ -598,19 +598,44 @@ async function plGuardarHoy(){
   _plCargarDia(dia);
 }
 
-async function cargarPlantillaHoy(){
+async function abrirCargarPlantilla(){
   if(!sesion){toast('No hay sesion abierta',true);return;}
-  const dia=new Date(hoy()+'T12:00:00').getDay();
+  const hoyDia=new Date(hoy()+'T12:00:00').getDay();
+  const {data}=await sb.from('plantillas_grilla').select('dia_semana').eq('jugador_id',user.id);
+  const cuenta={}; (data||[]).forEach(r=>{cuenta[r.dia_semana]=(cuenta[r.dia_semana]||0)+1;});
+  const botones=[1,2,3,4,5,6,0].map(d=>{
+    const n=cuenta[d]||0, hoyTxt=d===hoyDia?' (hoy)':'';
+    return `<button ${n?'':'disabled'} onclick="cargarPlantillaDia(${d})" style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 12px;margin-bottom:6px;background:${d===hoyDia?'rgba(107,143,168,.14)':'transparent'};border:1px solid var(--border2);color:${n?'var(--text)':'var(--muted)'};font-family:'DM Mono',monospace;font-size:12px;cursor:${n?'pointer':'not-allowed'};opacity:${n?1:.45}">
+      <span>${DIAS_SEM[d]}${hoyTxt}</span><span style="color:var(--muted)">${n?n+' torneos':'vacia'}</span></button>`;
+  }).join('');
+  const ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-pl';
+  ov.innerHTML=`<div class="modal" style="max-width:360px;border-top-color:var(--silver)">
+    <div class="modal-t">Cargar plantilla</div>
+    <div class="modal-b" style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Elegi que dia queres traer a la grilla de hoy.</div>
+      ${botones}
+    </div>
+    <div class="modal-a"><button class="cancel-btn" onclick="cerrarCargarPlantilla()">Cancelar</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function cerrarCargarPlantilla(){ const o=document.getElementById('modal-pl'); if(o) o.remove(); }
+
+async function cargarPlantillaDia(dia){
+  if(!sesion){toast('No hay sesion abierta',true);return;}
   const {data:pl}=await sb.from('plantillas_grilla').select('*').eq('jugador_id',user.id).eq('dia_semana',dia).order('orden').order('hora');
   if(!pl||!pl.length){ toast('No tenes plantilla guardada para el '+DIAS_SEM[dia],true); return; }
   if(filas.length && !confirm('Esto reemplaza tu grilla de hoy ('+filas.length+' torneos) con la plantilla del '+DIAS_SEM[dia]+' ('+pl.length+' torneos). Seguir?')) return;
+  cerrarCargarPlantilla();
   await sb.from('grilla_entradas').delete().eq('sesion_id',sesion.sesion_id);
   const nuevos=pl.map(p=>({sesion_id:sesion.sesion_id,nombre_torneo:p.nombre_torneo||'',sala_id:p.sala_id||null,hora:p.hora||null,buyin:p.buyin||0,estado:'a_iniciar',rebuys:0,costo_rebuys:0,itm:false,premio:0,resultado:0,color:'#3a4a5a'}));
   const {error}=await sb.from('grilla_entradas').insert(nuevos);
   if(error){toast('Error al cargar: '+error.message,true);return;}
-  toast('Cargue la plantilla del '+DIAS_SEM[dia]+' ('+nuevos.length+' torneos) ✓');
+  toast('Cargue la plantilla del '+DIAS_SEM[dia]+' ('+nuevos.length+' torneos)');
   await obtenerSesion();
 }
+
 
 // ── SESIÓN ────────────────────────────
 async function obtenerSesion(){
